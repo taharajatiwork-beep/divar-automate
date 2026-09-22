@@ -213,9 +213,8 @@
 
     if (filledKeys.size > 0) {
       showIndicator(
-        '✅ ' + filledKeys.size + '/' + totalAvailable + ' فیلد پر شد' +
-        '
-دکمه "بعدی" رو بزن ✋'
+        '✅ ' + filledKeys.size + '/' + totalAvailable + ' فیلد پر شد\n' +
+        'دکمه "بعدی" رو بزن ✋'
       );
 
       // Auto-click next
@@ -313,9 +312,11 @@
     });
   }
 
-  // Watch for SPA navigation
+  // Watch for SPA navigation + periodic re-fetch
   let lastUrl = location.href;
-  const observer = new MutationObserver(() => {
+  let lastFetchTime = 0;
+
+  const observer = new MutationObserver(async () => {
     if (location.href !== lastUrl) {
       lastUrl = location.href;
       if (isAdFormPage()) {
@@ -323,6 +324,18 @@
         init();
       } else {
         removeIndicator();
+      }
+      return;
+    }
+    // Re-fetch from API every 3 seconds (handles stale prefill)
+    if (isAdFormPage() && currentPrefill && Date.now() - lastFetchTime > 3000) {
+      lastFetchTime = Date.now();
+      const fresh = await fetchPrefillFromAPI();
+      if (fresh && JSON.stringify(fresh) !== JSON.stringify(currentPrefill)) {
+        log('new prefill detected! Re-filling...');
+        currentPrefill = fresh;
+        filledKeys.clear();
+        orchestrate();
       }
     }
   });

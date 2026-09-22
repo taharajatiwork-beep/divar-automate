@@ -18,9 +18,9 @@
     "city": "تهران",
     "createdAt": "2026-09-22T09:46:30.219Z",
     "updatedAt": "2026-09-22T09:46:30.219Z",
-    "status": "locked",
-    "locked_by": "op-ali",
-    "locked_at": "2026-09-22T10:51:22.140Z"
+    "status": "active",
+    "locked_by": null,
+    "locked_at": null
   },
   {
     "id": "P002",
@@ -148,7 +148,9 @@
     "city": "تهران",
     "createdAt": "2026-09-22T09:46:30.219Z",
     "updatedAt": "2026-09-22T09:46:30.219Z",
-    "status": "active"
+    "status": "locked",
+    "locked_by": "op-ali",
+    "locked_at": "2026-09-22T10:56:42.222Z"
   },
   {
     "id": "P008",
