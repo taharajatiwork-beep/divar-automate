@@ -112,23 +112,44 @@
   async function clickDivarDropdown(labelText, optionText) {
     if (!optionText) return false;
 
-    // Find the label element near the select
-    const allEls = [...document.querySelectorAll('*')];
-    const labelEl = allEls.find(el => {
-      const t = (el.textContent || '').trim().replace(/[*\u060A]/g, '').trim();
-      return t === labelText && el.offsetParent && el.children.length === 0;
-    });
-    if (!labelEl) { warn('label not found:', labelText); return false; }
-
-    // Walk up to find the kt-dropdown-menu container, then find the button inside
-    let container = labelEl.parentElement;
+    // Find the dropdown TRIGGER BUTTON (button.kt-select-field) 
+    // by looking for nearby label text
+    const triggers = [...document.querySelectorAll('button.kt-select-field, button[class*="select-field"]')]
+      .filter(b => b.offsetParent);
+    
     let trigger = null;
-    for (let i = 0; i < 6 && container; i++) {
-      trigger = container.querySelector('button.kt-select-field, button[class*="select"], button[class*="action-field"]');
-      if (trigger && trigger.offsetParent) break;
-      trigger = null;
-      container = container.parentElement;
+    
+    // Strategy 1: walk up from trigger to find label text in parent
+    for (const btn of triggers) {
+      let parent = btn.parentElement;
+      for (let i = 0; i < 5 && parent; i++) {
+        const txt = (parent.innerText || '').trim();
+        if (txt.includes(labelText)) { trigger = btn; break; }
+        parent = parent.parentElement;
+      }
+      if (trigger) break;
     }
+    
+    // Strategy 2: walk up from trigger, check previous siblings
+    if (!trigger) {
+      for (const btn of triggers) {
+        let parent = btn.parentElement;
+        for (let i = 0; i < 5 && parent; i++) {
+          const prev = parent.previousElementSibling;
+          if (prev && (prev.innerText || '').includes(labelText)) { trigger = btn; break; }
+          parent = parent.parentElement;
+        }
+        if (trigger) break;
+      }
+    }
+    
+    // Strategy 3: match by order (brand=1st, mileage=2nd, etc.)
+    if (!trigger) {
+      const labels = ['برند و مدل', 'کارکرد', 'مدل', 'رنگ', 'گیربکس', 'سوخت'];
+      const idx = labels.indexOf(labelText);
+      if (idx >= 0 && idx < triggers.length) trigger = triggers[idx];
+    }
+    
     if (!trigger) { warn('trigger not found:', labelText); return false; }
 
     // Click to open modal
