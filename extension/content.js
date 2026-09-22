@@ -124,45 +124,66 @@
     if (!optionText) return false;
     labelText = labelText || fieldId;
 
-    // Actual Divar car fields are keyed by id, e.g. #color > #color___Input.
-    const trigger = document.querySelector('#' + CSS.escape(fieldId) + ' button') ||
-      document.querySelector('#' + CSS.escape(fieldId + '___Input'));
+    // Find trigger button - Divar car fields use #fieldId___Input or #fieldId button
+    const trigger = document.querySelector('#' + CSS.escape(fieldId) + '___Input') ||
+      document.querySelector('#' + CSS.escape(fieldId) + ' button');
     if (!trigger) {
       warn('field control not found:', fieldId);
       return false;
     }
 
     const before = (trigger.innerText || '').trim();
+    const wanted = normalizeOption(optionText);
+
+    // If already selected, skip
+    if (normalizeOption(before) === wanted && before !== 'انتخاب') {
+      log('✅ already set:', fieldId, '=', before);
+      return true;
+    }
+
     trigger.click();
     await sleep(700);
+
+    // Verify modal opened
     if (trigger.getAttribute('aria-expanded') !== 'true') {
       warn('field did not open:', fieldId);
       return false;
     }
 
-    // Options are rendered in a portal, not inside the field or a fixed modal.
-    // Inspect all visible clickable rows and only use an exact normalized match.
-    const wanted = normalizeOption(optionText);
-    const candidates = [...document.querySelectorAll(
-      '[role="option"], button, label, .kt-base-row, .kt-control-row, li'
-    )].filter(el => {
-      if (!el.offsetParent || el === trigger) return false;
-      const text = normalizeOption(el.innerText || el.textContent);
-      return text === wanted;
-    });
-
-    if (!candidates.length) {
-      warn('option not found:', fieldId, optionText);
-      trigger.click();
+    // Find the single-select-modal (Divar renders options in this portal modal)
+    const modal = document.querySelector('.single-select-modal.kt-modal');
+    if (!modal) {
+      warn('single-select-modal not found for:', fieldId);
+      trigger.click(); // close
       return false;
     }
 
-    const option = candidates.sort((a, b) => a.children.length - b.children.length)[0];
-    option.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-    option.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
-    option.click();
+    // Find matching option row
+    const rows = modal.querySelectorAll('.kt-base-row');
+    let matched = null;
+
+    for (const row of rows) {
+      const titleEl = row.querySelector('.start__title-_UBPtX, p');
+      const rowText = (titleEl?.textContent || row.textContent || '').trim();
+      if (normalizeOption(rowText) === wanted) {
+        matched = row;
+        break;
+      }
+    }
+
+    if (!matched) {
+      warn('option not found:', fieldId, optionText);
+      trigger.click(); // close modal
+      return false;
+    }
+
+    // Click the matched row with full pointer events for React
+    matched.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    matched.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    matched.click();
     await sleep(700);
 
+    // Verify the selection was committed - trigger text must change
     const after = (trigger.innerText || '').trim();
     const committed = normalizeOption(after) === wanted && after !== before;
     if (!committed) {
