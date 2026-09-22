@@ -193,7 +193,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (method === 'POST' && path === '/api/tasks/smart-assign') {
-      requireAuth(user, 'task:assign');
+      requireAuth(user, 'task:claim');
       const operators = authService.getOperators();
       const task = service.smartAssign({ operators });
       return sendJson(res, 200, { task });
