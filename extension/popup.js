@@ -35,7 +35,7 @@ async function showStatus() {
     return;
   }
 
-  const { task, prefill } = res;
+  const { task, prefill, tabId } = res;
 
   if (!task) {
     render(`
@@ -46,11 +46,13 @@ async function showStatus() {
           متصل — آماده دریافت وظیفه
         </div>
         <button class="btn btn-primary" id="btn-claim" style="margin-top:12px;">
-          دریافت وظیفه بعدی
+          🚀 دریافت وظیفه و بازکردن صفحه دیوار
         </button>
       </div>
       <div class="warning-banner">
-        ⛔ ثبت آگهی هرگز خودکار نیست — فقط داده پیش‌پرکردن ارسال می‌شود
+        ⛔ ثبت آگهی هرگز خودکار نیست<br/>
+        صفحه دیوار خودکار باز می‌شود و فیلدها پر می‌شوند<br/>
+        ولی ثبت نهایی با خودتان است
       </div>
     `);
     document.getElementById('btn-claim')?.addEventListener('click', claimTask);
@@ -62,6 +64,8 @@ async function showStatus() {
   const edits = prefill?.fieldEdits || [];
   const images = prefill?.images || [];
   const errors = prefill?.validationErrors || [];
+
+  const tabOpen = tabId !== null && tabId !== undefined;
 
   render(`
     <div class="section">
@@ -76,6 +80,20 @@ async function showStatus() {
       </div>
     </div>
 
+    ${tabOpen ? `
+      <div class="section" style="background: #065f4620; border-radius: 8px; padding: 10px 14px;">
+        <div style="color: #86efac; font-size: 12px;">
+          ✅ صفحه دیوار باز است — روی «پر کردن فیلدها» در صفحه کلیک کنید
+        </div>
+      </div>
+    ` : `
+      <div class="section">
+        <button class="btn btn-secondary" id="btn-open-divar">
+          🌐 بازکردن صفحه ثبت آگهی
+        </button>
+      </div>
+    `}
+
     ${edits.length > 0 ? `
       <div class="section">
         <div class="label">اصلاحات اعمال‌شده</div>
@@ -86,38 +104,45 @@ async function showStatus() {
     ` : ''}
 
     <div class="section">
-      <button class="btn btn-primary" id="btn-fill" onclick="window.__fillForm && window.__fillForm()">
-        پر کردن خودکار فیلدها در فرم
-      </button>
-      <button class="btn btn-danger" id="btn-submit" style="margin-top:6px;">
+      <button class="btn btn-danger" id="btn-submit">
         ✅ ثبت آگهی (تأیید انسانی)
       </button>
       <div class="warning-banner">
-        ⛔ فقط در صفحه فرم ثبت آگهی کلیک کنید
+        ⛔ فقط بعد از بررسی نهایی کلیک کنید
       </div>
     </div>
   `);
 
+  document.getElementById('btn-open-divar')?.addEventListener('click', async () => {
+    const r = await sendMessage('openDivar');
+    if (r.success) {
+      await showStatus(); // refresh to show tab is open
+    }
+  });
+
   document.getElementById('btn-submit')?.addEventListener('click', async () => {
     if (!confirm('آیا ثبت آگهی در دیوار را تأیید می‌کنید؟')) return;
-    const res = await sendMessage('submit', { taskId: task.id });
-    if (res.success) {
+    const r = await sendMessage('submit', { taskId: task.id });
+    if (r.success) {
       render(`
         <div class="section">
           <div class="value" style="color:#86efac; text-align:center; padding:16px;">
             ✅ ثبت شد!
           </div>
+          <button class="btn btn-primary" onclick="location.reload()" style="margin-top:8px;">
+            دریافت وظیفه بعدی
+          </button>
         </div>
       `);
     } else {
-      render(`<div class="section"><div class="error">${res.error}</div></div>`);
+      render(`<div class="section"><div class="error">${r.error}</div><button class="btn btn-secondary" onclick="location.reload()" style="margin-top:8px;">بازگشت</button></div>`);
     }
   });
 }
 
 // ── Claim task ──────────────────────────────────────────────────────
 async function claimTask() {
-  render('<div class="section"><div class="empty">در حال تخصیص...</div></div>');
+  render('<div class="section"><div class="empty">در حال تخصیص و بازکردن صفحه...</div></div>');
   const res = await sendMessage('claimNext');
   if (res.success && res.task) {
     await showStatus();

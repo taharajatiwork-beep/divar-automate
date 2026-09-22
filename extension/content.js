@@ -1,5 +1,6 @@
 // ─── Content Script — Divar Ad Form Auto-Fill ───────────────────────
-// Detects the ad creation form and fills text fields.
+// Detects the ad creation form, receives prefill data from background,
+// fills text fields on user request.
 // NEVER clicks "submit" — only fills data and highlights readiness.
 
 (function () {
@@ -8,6 +9,7 @@
   const LOG_PREFIX = '[دیوار-پایلوت]';
   let currentPrefill = null;
   let fillIndicator = null;
+  let autoFilled = false;  // prevent double-fill
 
   // ── Logging ──────────────────────────────────────────────────────
   function log(...args) {
@@ -18,7 +20,41 @@
     console.warn(LOG_PREFIX, ...args);
   }
 
-  // ── State check on load ──────────────────────────────────────────
+  // ── Listen for messages from background ───────────────────────────
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'fillReady' && message.prefill) {
+      currentPrefill = message.prefill;
+      autoFilled = false;
+      log('داده پیش‌پرشدن از background دریافت شد:', message.taskId);
+
+      // Wait for the form to render, then show indicator
+      waitForForm().then(() => {
+        showFloatingIndicator();
+      });
+      sendResponse({ received: true });
+    }
+  });
+
+  // ── Wait for form elements to appear ─────────────────────────────
+  function waitForForm(maxWait = 10000) {
+    return new Promise((resolve) => {
+      const start = Date.now();
+      const check = () => {
+        const fields = findFormFields();
+        if (Object.keys(fields).length > 0) {
+          resolve(fields);
+        } else if (Date.now() - start < maxWait) {
+          setTimeout(check, 500);
+        } else {
+          log('فرم در زمان مقرر پیدا نشد — اندیکاتور نمایش داده می‌شود.');
+          resolve({});
+        }
+      };
+      check();
+    });
+  }
+
+  // ── State check on load (fallback) ───────────────────────────────
   function checkState() {
     chrome.runtime.sendMessage({ action: 'getStatus' }, (response) => {
       if (chrome.runtime.lastError) {
@@ -27,7 +63,7 @@
       }
       if (response?.success && response.prefill) {
         currentPrefill = response.prefill;
-        log('پیش‌پرشدن بارگذاری شد:', currentPrefill.taskId);
+        log('پیش‌پرشدن از state بارگذاری شد:', currentPrefill.taskId);
         showFloatingIndicator();
       } else {
         log('وظیفه‌ای فعال نیست.');
@@ -86,18 +122,18 @@
             background: #166534;
             color: white;
             border: none;
-            padding: 6px 16px;
+            padding: 8px 20px;
             border-radius: 6px;
             cursor: pointer;
             font-family: inherit;
-            font-size: 12px;
-            font-weight: 500;
-          ">پر کردن فیلدها</button>
+            font-size: 13px;
+            font-weight: 600;
+          ">✅ پر کردن فیلدها</button>
           <button id="divar-pilot-close-btn" style="
             background: #374151;
             color: #9ca3af;
             border: none;
-            padding: 6px 12px;
+            padding: 8px 12px;
             border-radius: 6px;
             cursor: pointer;
             font-family: inherit;
@@ -129,15 +165,12 @@
   }
 
   // ── Form detection ───────────────────────────────────────────────
-  // Divar uses various form structures. We try multiple selectors.
   function findFormFields() {
     const fields = {};
 
-    // Strategy 1: Look for inputs by placeholder or label text
     const allInputs = document.querySelectorAll('input[type="text"], input[type="number"], textarea');
     const allLabels = document.querySelectorAll('label');
 
-    // Map Persian labels to field names
     const labelMap = {
       'عنوان': 'title',
       'توضیحات': 'description',
@@ -161,7 +194,6 @@
       }
     }
 
-    // Strategy 2: Look for inputs by placeholder
     for (const input of allInputs) {
       const placeholder = (input.placeholder || '').trim();
       if (placeholder.includes('عنوان')) fields.title = fields.title || input;
@@ -186,7 +218,6 @@
     for (const [key, element] of Object.entries(fields)) {
       let value = prefilled[key];
 
-      // Handle nested attributes
       if (key.startsWith('attributes.')) {
         const attrKey = key.split('.')[1];
         value = prefilled.attributes?.[attrKey];
@@ -194,12 +225,10 @@
 
       if (value === undefined || value === null || value === '') continue;
 
-      // Convert price to string
       if (key === 'price' && typeof value === 'number') {
         value = String(value);
       }
 
-      // For non-array values, set the input
       if (!Array.isArray(value)) {
         setNativeValue(element, String(value));
         highlightField(element);
@@ -208,20 +237,15 @@
       }
     }
 
-    // Show summary
+    autoFilled = true;
     showFillSummary(filledCount, Object.keys(fields).length);
-
-    // Update indicator
     removeIndicator();
     showFloatingIndicator();
-
     log(`پیش‌پرکردن تمام شد: ${filledCount} فیلد.`);
   }
 
   // ── Set value reactively ─────────────────────────────────────────
-  // React-controlled inputs need special handling.
   function setNativeValue(element, value) {
-    // Try React's internal setter first
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
       window.HTMLInputElement.prototype, 'value'
     )?.set;
@@ -239,7 +263,6 @@
       element.value = value;
     }
 
-    // Dispatch events to trigger React/Vue handlers
     element.dispatchEvent(new Event('input', { bubbles: true }));
     element.dispatchEvent(new Event('change', { bubbles: true }));
     element.dispatchEvent(new Event('blur', { bubbles: true }));
@@ -289,7 +312,16 @@
 
   if (isAdFormPage()) {
     log('صفحه فرم ثبت آگهی شناسایی شد.');
+
+    // Try to get prefill from background state
     checkState();
+
+    // Also wait for direct message (in case background sends it)
+    waitForForm().then(() => {
+      if (currentPrefill && !fillIndicator) {
+        showFloatingIndicator();
+      }
+    });
   }
 
   // Watch for URL changes (SPA navigation)
@@ -299,6 +331,7 @@
       lastUrl = location.href;
       if (isAdFormPage()) {
         log('تغییر URL به صفحه فرم — بررسی وضعیت...');
+        autoFilled = false;
         checkState();
       }
     }
