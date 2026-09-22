@@ -12,15 +12,13 @@
       "color": "آبی"
     },
     "images": [
-      "https://cdn.example.test/P001/01.jpg",
-      "https://cdn.example.test/P001/02.jpg"
+      "/images/P001_01.jpg",
+      "/images/P001_02.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T09:46:30.219Z",
-    "updatedAt": "2026-09-22T09:46:30.219Z",
-    "status": "active",
-    "locked_by": null,
-    "locked_at": null
+    "createdAt": "2026-09-22T11:40:49.415Z",
+    "updatedAt": "2026-09-22T11:40:49.415Z",
+    "status": "active"
   },
   {
     "id": "P002",
@@ -35,12 +33,14 @@
       "color": "مشکی"
     },
     "images": [
-      "https://cdn.example.test/P002/01.jpg"
+      "/images/P002_01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T09:46:30.219Z",
-    "updatedAt": "2026-09-22T09:46:30.219Z",
-    "status": "active"
+    "createdAt": "2026-09-22T11:40:49.415Z",
+    "updatedAt": "2026-09-22T11:40:49.415Z",
+    "status": "locked",
+    "locked_by": "op-ali",
+    "locked_at": "2026-09-22T11:41:41.048Z"
   },
   {
     "id": "P003",
@@ -55,15 +55,13 @@
       "color": "خاکستری"
     },
     "images": [
-      "https://cdn.example.test/P003/01.jpg",
-      "https://cdn.example.test/P003/02.jpg"
+      "/images/P003_01.jpg",
+      "/images/P003_02.jpg"
     ],
     "city": "اصفهان",
-    "createdAt": "2026-09-22T09:46:30.219Z",
-    "updatedAt": "2026-09-22T09:46:30.219Z",
-    "status": "active",
-    "locked_by": null,
-    "locked_at": null
+    "createdAt": "2026-09-22T11:40:49.415Z",
+    "updatedAt": "2026-09-22T11:40:49.415Z",
+    "status": "active"
   },
   {
     "id": "P004",
@@ -78,11 +76,11 @@
       "color": "بنفش"
     },
     "images": [
-      "https://cdn.example.test/P004/01.jpg"
+      "/images/P004_01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T09:46:30.219Z",
-    "updatedAt": "2026-09-22T09:46:30.219Z",
+    "createdAt": "2026-09-22T11:40:49.415Z",
+    "updatedAt": "2026-09-22T11:40:49.415Z",
     "status": "active"
   },
   {
@@ -99,8 +97,8 @@
     },
     "images": [],
     "city": "شیراز",
-    "createdAt": "2026-09-22T09:46:30.219Z",
-    "updatedAt": "2026-09-22T09:46:30.219Z",
+    "createdAt": "2026-09-22T11:40:49.415Z",
+    "updatedAt": "2026-09-22T11:40:49.415Z",
     "status": "active"
   },
   {
@@ -119,14 +117,12 @@
       "display": "14\" OLED 2.8K"
     },
     "images": [
-      "https://cdn.example.test/P006/01.jpg"
+      "/images/P006_01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T09:46:30.219Z",
-    "updatedAt": "2026-09-22T09:46:30.219Z",
-    "status": "locked",
-    "locked_by": "op-ali",
-    "locked_at": "2026-09-22T11:07:51.090Z"
+    "createdAt": "2026-09-22T11:40:49.415Z",
+    "updatedAt": "2026-09-22T11:40:49.415Z",
+    "status": "active"
   },
   {
     "id": "P007",
@@ -144,15 +140,13 @@
       "display": "15.3\" Liquid Retina"
     },
     "images": [
-      "https://cdn.example.test/P007/01.jpg",
-      "https://cdn.example.test/P007/02.jpg"
+      "/images/P007_01.jpg",
+      "/images/P007_02.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T09:46:30.219Z",
-    "updatedAt": "2026-09-22T09:46:30.219Z",
-    "status": "active",
-    "locked_by": null,
-    "locked_at": null
+    "createdAt": "2026-09-22T11:40:49.415Z",
+    "updatedAt": "2026-09-22T11:40:49.415Z",
+    "status": "active"
   },
   {
     "id": "P008",
@@ -170,11 +164,11 @@
       "display": "16\" IPS 240Hz"
     },
     "images": [
-      "https://cdn.example.test/P008/01.jpg"
+      "/images/P008_01.jpg"
     ],
     "city": "تبریز",
-    "createdAt": "2026-09-22T09:46:30.219Z",
-    "updatedAt": "2026-09-22T09:46:30.219Z",
+    "createdAt": "2026-09-22T11:40:49.415Z",
+    "updatedAt": "2026-09-22T11:40:49.415Z",
     "status": "active"
   },
   {
@@ -189,11 +183,11 @@
       "color": "سفید"
     },
     "images": [
-      "https://cdn.example.test/P009/01.jpg"
+      "/images/P009_01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T09:46:30.219Z",
-    "updatedAt": "2026-09-22T09:46:30.219Z",
+    "createdAt": "2026-09-22T11:40:49.415Z",
+    "updatedAt": "2026-09-22T11:40:49.415Z",
     "status": "active"
   },
   {
@@ -208,11 +202,11 @@
       "color": "نیمه‌شفاف"
     },
     "images": [
-      "https://cdn.example.test/P010/01.jpg"
+      "/images/P010_01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T09:46:30.219Z",
-    "updatedAt": "2026-09-22T09:46:30.219Z",
+    "createdAt": "2026-09-22T11:40:49.415Z",
+    "updatedAt": "2026-09-22T11:40:49.415Z",
     "status": "active"
   },
   {
@@ -227,11 +221,11 @@
       "power": "15W"
     },
     "images": [
-      "https://cdn.example.test/P011/01.jpg"
+      "/images/P011_01.jpg"
     ],
     "city": "کرمان",
-    "createdAt": "2026-09-22T09:46:30.219Z",
-    "updatedAt": "2026-09-22T09:46:30.219Z",
+    "createdAt": "2026-09-22T11:40:49.415Z",
+    "updatedAt": "2026-09-22T11:40:49.415Z",
     "status": "active"
   }
 ]
