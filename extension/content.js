@@ -46,7 +46,7 @@
 
   function findFieldByConfig(config) {
     const inputs = [...document.querySelectorAll('input, textarea, [role="textbox"]')]
-      .filter(el => el.offsetParent !== null && el.type !== 'hidden' && el.type !== 'submit');
+      .filter(el => el.offsetParent !== null && el.type !== 'hidden' && el.type !== 'submit' && el.type !== 'file');
 
     for (const input of inputs) {
       // Strategy 1: name attribute (most reliable!)
@@ -96,6 +96,8 @@
   // ══════════════════════════════════════════════════════════════════
   function setNativeValue(el, value) {
     if (!el || value === undefined || value === null) return false;
+    // NEVER set file input values
+    if (el.type === 'file') return false;
     const strValue = String(value);
     if (el.value === strValue) return false;
 
@@ -157,15 +159,18 @@
     let newlyFilled = 0;
 
     for (const [key, el] of Object.entries(fields)) {
-      if (filledKeys.has(key)) continue; // already filled
+      if (filledKeys.has(key)) continue;
       const value = currentPrefill[key];
       if (value === undefined || value === null || value === '') continue;
-
-      if (setNativeValue(el, value)) {
-        filledKeys.add(key);
-        newlyFilled++;
-        log('✅', key, '=', String(value).substring(0, 40));
-        highlightField(el);
+      try {
+        if (setNativeValue(el, value)) {
+          filledKeys.add(key);
+          newlyFilled++;
+          log('\u2705', key, '=', String(value).substring(0, 40));
+          highlightField(el);
+        }
+      } catch (e) {
+        warn('failed to fill', key, ':', e.message);
       }
     }
 

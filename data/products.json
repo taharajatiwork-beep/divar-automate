@@ -124,7 +124,9 @@
     "city": "تهران",
     "createdAt": "2026-09-22T09:46:30.219Z",
     "updatedAt": "2026-09-22T09:46:30.219Z",
-    "status": "active"
+    "status": "locked",
+    "locked_by": "op-ali",
+    "locked_at": "2026-09-22T11:07:51.090Z"
   },
   {
     "id": "P007",
