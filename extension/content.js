@@ -314,6 +314,7 @@
   // ══════════════════════════════════════════════════════════════════
   async function orchestrate() {
     if (!currentPrefill) return;
+    const pf = currentPrefill;
 
     // Wait for form (up to 20s)
     let found = false;
@@ -324,38 +325,88 @@
     }
     if (!found) { showIndicator('⏳ فرم پیدا نشد'); return; }
 
-    // Fill fields (with delays for dropdowns)
-    const count = await fillFields();
-    log('filled:', count, 'fields');
+    let filled = 0;
+    const filledKeys = new Set();
 
-    // Upload images
-    uploadImages();
+    // 1. Fill text fields (Page 1)
+    const titleEl = findTextField('title');
+    if (titleEl && pf.title && setTextValue(titleEl, pf.title)) {
+      filledKeys.add('title'); filled++;
+      log('✅ title:', pf.title);
+      highlight(titleEl);
+    }
 
-    // Show result
+    const descEl = findTextField('description');
+    const desc = generateDescription(pf);
+    if (descEl && desc && setTextValue(descEl, desc)) {
+      filledKeys.add('description'); filled++;
+      log('✅ description:', desc.substring(0, 60));
+      highlight(descEl);
+    }
+
+    // 2. Upload images (Page 1)
+    await uploadImages();
+
+    log('page 1 done:', filled, 'fields — clicking بعدی...');
     showIndicator(
-      '✅ ' + filledKeys.size + ' فیلد پر شد\
+      '✅ ' + filled + ' فیلد پر شد (صفحه ۱)\
 ' +
-      'دکمه "بعدی" رو بزن ✋\
-' +
-      'در صورت عدم انتخاب فیلد‌ها خودکار انتخاب کنید'
+      'بعدی زده میشه، صبر کن...'
     );
 
-    // Auto-click "بعدی" — Divar needs a few seconds to load car fields
-    setTimeout(() => {
-      for (const btn of document.querySelectorAll('button')) {
-        const t = (btn.textContent || '').trim();
-        if (t.includes('بعدی') && btn.offsetParent && !btn.disabled) {
-          log('clicking بعدی...');
-          btn.click();
-          // Re-run orchestrate after page loads new fields
-          setTimeout(() => {
-            filledKeys.clear();
-            orchestrate();
-          }, 5000);
-          break;
-        }
+    // 3. Click "بعدی" to go to Page 2 (car fields)
+    await new Promise(r => setTimeout(r, 2000));
+    let nextClicked = false;
+    for (const btn of document.querySelectorAll('button')) {
+      const t = (btn.textContent || '').trim();
+      if (t.includes('بعدی') && btn.offsetParent && !btn.disabled) {
+        log('clicking بعدی...');
+        btn.click();
+        nextClicked = true;
+        break;
       }
-    }, 2000);
+    }
+    if (!nextClicked) { warn('بعدی button not found'); return; }
+
+    // 4. Wait for Page 2 to load (car-specific select buttons)
+    log('waiting for car fields to load...');
+    let selectFound = false;
+    for (let w = 0; w < 20; w++) {
+      await new Promise(r => setTimeout(r, 500));
+      if (document.querySelector('button[name="year"]') || 
+          document.querySelector('button[name="color"]')) {
+        selectFound = true;
+        break;
+      }
+    }
+    if (!selectFound) { warn('car fields did not load after بعدی'); return; }
+    log('car fields loaded!');
+
+    // 5. Fill select dropdowns (Page 2)
+    await new Promise(r => setTimeout(r, 1000)); // extra settle time
+
+    const selects = [
+      { name: 'fuel_type', value: pf.fuel || 'بنزین' },
+      { name: 'year',      value: pf.year },
+      { name: 'color',     value: pf.color },
+      { name: 'gearbox',   value: pf.gearbox },
+    ];
+
+    let selectFilled = 0;
+    for (const s of selects) {
+      if (!s.value) continue;
+      try {
+        const ok = await clickDivarDropdownByName(s.name, String(s.value));
+        if (ok) { selectFilled++; log('✅', s.name, '=', s.value); }
+      } catch (e) { warn('select error:', s.name, e.message); }
+    }
+
+    log('done! text:', filled, 'selects:', selectFilled);
+    showIndicator(
+      '✅ ' + filled + ' متن + ' + selectFilled + ' انتخاب\
+' +
+      'فرم رو بررسی کن ✋'
+    );
   }
 
   // ══════════════════════════════════════════════════════════════════
