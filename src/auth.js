@@ -10,8 +10,10 @@ export const ROLES = Object.freeze({
 // ── Permissions per role ────────────────────────────────────────────
 const PERMISSIONS = Object.freeze({
   [ROLES.OPERATOR]: [
-    'task:read_own',
+    'products:read',
+    'task:create',
     'task:claim',
+    'task:read_own',
     'task:edit_own',
     'task:submit_own',
     'prefill:read_own',

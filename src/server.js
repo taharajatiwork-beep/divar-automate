@@ -75,11 +75,54 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, db.getProductStats());
     }
 
+    // ── Product Locking (specific routes BEFORE /:id catch-all) ───
+    if (method === 'GET' && path === '/api/products/board') {
+      requireAuth(user, 'products:read');
+      return sendJson(res, 200, db.getProductsByStatus());
+    }
+    if (method === 'POST' && path.match(/^\/api\/products\/[^/]+\/lock$/)) {
+      const productId = path.split('/')[3];
+      requireAuth(user, 'task:create');
+      const result = db.lockProduct(productId, user.id);
+      if (result.error) return sendJson(res, 409, result);
+      const product = result.product;
+      db.addAuditLog({ action: 'product_locked', productId: product.id, operatorId: user.id });
+      return sendJson(res, 200, { product });
+    }
+    if (method === 'POST' && path.match(/^\/api\/products\/[^/]+\/unlock$/)) {
+      const productId = path.split('/')[3];
+      requireAuth(user, 'task:create');
+      const result = db.unlockProduct(productId, user.id);
+      if (result.error) return sendJson(res, 400, result);
+      db.addAuditLog({ action: 'product_unlocked', productId, operatorId: user.id });
+      return sendJson(res, 200, result);
+    }
+    if (method === 'POST' && path.match(/^\/api\/products\/[^/]+\/complete$/)) {
+      const productId = path.split('/')[3];
+      requireAuth(user, 'task:create');
+      const result = db.completeProduct(productId, user.id);
+      if (result.error) return sendJson(res, 400, result);
+      db.addAuditLog({ action: 'product_posted', productId: result.product.id, operatorId: user.id });
+      return sendJson(res, 200, result);
+    }
+
+    // ── Generic product CRUD (after specific routes) ─────────────
     if (method === 'GET' && path.match(/^\/api\/products\/[^/]+$/)) {
       const id = path.split('/').pop();
       const p = db.getProduct(id);
       if (!p) return sendJson(res, 404, { error: 'محصول پیدا نشد.' });
       return sendJson(res, 200, { product: p });
+    }
+
+    // ── Product prefill data (for extension) ─────────────────────
+    if (method === 'GET' && path.match(/^\/api\/products\/[^/]+\/prefill$/)) {
+      const id = path.split('/')[3];
+      const p = db.getProduct(id);
+      if (!p) return sendJson(res, 404, { error: 'محصول پیدا نشد.' });
+      if (p.status !== 'locked' || p.locked_by !== user.id) {
+        return sendJson(res, 403, { error: 'این محصول قفل نیست یا قفل شما نیست.' });
+      }
+      return sendJson(res, 200, { prefill: { title: p.title, description: p.description, price: p.price, attributes: p.attributes, category: p.category, city: p.city } });
     }
 
     if (method === 'POST' && path === '/api/products') {

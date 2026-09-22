@@ -144,7 +144,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         case 'getStats': return { success: true, stats: await getStats() };
         case 'listTasks': return { success: true, tasks: (await listTasks()).tasks };
         case 'getUsers': return { success: true, users: (await getUsers()).users };
-        case 'openDivar': return { success: true, tabId: await openDivarTab() };
+        case 'openDivar': {
+          if (message.prefill) {
+            currentPrefill = message.prefill;
+          }
+          const tabId = await openDivarTab();
+          return { success: true, tabId };
+        }
         default: return { success: false, error: `اکشن ناشناخته: ${message.action}` };
       }
     } catch (err) { return { success: false, error: err.message }; }

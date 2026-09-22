@@ -109,6 +109,84 @@ export function createDatabase() {
       return products.find(p => p.id === id) || null;
     },
 
+    // ── Product Locking (prevent duplicate postings) ───────────────
+    LOCK_TIMEOUT_MS: 30 * 60 * 1000, // 30 minutes
+
+    lockProduct(productId, operatorId) {
+      const product = products.find(p => p.id === productId);
+      if (!product) return { error: 'محصول پیدا نشد.' };
+      // Check if already locked by someone else and not expired
+      if (product.locked_by && product.locked_by !== operatorId) {
+        const elapsed = Date.now() - new Date(product.locked_at).getTime();
+        if (elapsed < this.LOCK_TIMEOUT_MS) {
+          const minsLeft = Math.ceil((this.LOCK_TIMEOUT_MS - elapsed) / 60000);
+          return { error: `این محصول توسط ${product.locked_by_name || product.locked_by} قفل شده. ${minsLeft} دقیقه دیگه آزاد می‌شه.` };
+        }
+      }
+      // Lock it
+      product.locked_by = operatorId;
+      product.locked_at = new Date().toISOString();
+      product.status = 'locked';
+      saveProducts();
+      return { product };
+    },
+
+    unlockProduct(productId, operatorId) {
+      const product = products.find(p => p.id === productId);
+      if (!product) return { error: 'محصول پیدا نشد.' };
+      // Only owner or manager can unlock
+      if (product.locked_by && product.locked_by !== operatorId) {
+        return { error: 'فقط خودتون یا مدیر می‌تونید قفل رو باز کنید.' };
+      }
+      product.locked_by = null;
+      product.locked_at = null;
+      product.status = 'active';
+      saveProducts();
+      return { product };
+    },
+
+    completeProduct(productId, operatorId) {
+      const product = products.find(p => p.id === productId);
+      if (!product) return { error: 'محصول پیدا نشد.' };
+      product.locked_by = null;
+      product.locked_at = null;
+      product.status = 'posted';
+      product.posted_at = new Date().toISOString();
+      product.posted_by = operatorId;
+      saveProducts();
+      return { product };
+    },
+
+    releaseExpiredLocks() {
+      const now = Date.now();
+      let released = 0;
+      for (const p of products) {
+        if (p.status === 'locked' && p.locked_at) {
+          const elapsed = now - new Date(p.locked_at).getTime();
+          if (elapsed >= this.LOCK_TIMEOUT_MS) {
+            p.locked_by = null;
+            p.locked_at = null;
+            p.status = 'active';
+            released++;
+          }
+        }
+      }
+      if (released > 0) saveProducts();
+      return released;
+    },
+
+    getProductsByStatus() {
+      this.releaseExpiredLocks();
+      const result = { available: [], locked: [], posted: [] };
+      for (const p of products) {
+        const status = p.status || 'active';
+        if (status === 'active') result.available.push(p);
+        else if (status === 'locked') result.locked.push(p);
+        else if (status === 'posted') result.posted.push(p);
+      }
+      return result;
+    },
+
     addProduct(data) {
       const id = data.id || `P${String(products.length + 1).padStart(3, '0')}`;
       const product = {
