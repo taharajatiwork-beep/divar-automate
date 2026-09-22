@@ -1,58 +1,74 @@
 # پایلوت انتشار نیمه‌خودکار آگهی
 
-این پروژه فاز اول سامانه انتشار نیمه‌خودکار آگهی است. دامنه فعلی عمداً کوچک و کنترل‌شده است:
+سامانه‌ای برای مدیریت و پیش‌پرکردن آگهی‌ها در دیوار. انسان همیشه دکمه ثبت نهایی را می‌زند.
 
-- داده محصول Mock
-- تنها دسته‌بندی `mobile-phones`
-- یک قالب نگاشت نسخه‌دار
-- ساخت دستی وظیفه
-- اعتبارسنجی داده قبل از ورود به صف
-- تخصیص یک وظیفه آماده به اپراتور
-- API داخلی برای دریافت داده پیش‌پرشده
+## اجزا
+
+| جزء | توضیح |
+|---|---|
+| `src/` | سرویس مرکزی (Node.js) — نگاشت، اعتبارسنجی، lifecycle وظیفه، لاگ ممیزی |
+| `web/` | پنل مدیریت (React + Tailwind) — داشبورد، لیست وظایف، جزئیات، لاگ |
+| `extension/` | اکستنشن Chrome — پرکردن خودکار فیلدهای متنی فرم دیوار |
+| `test/` | تست‌های واحد (21 تست) |
 
 ## مرز ایمنی
 
-این سرویس هیچ اتصال یا اتوماسیونی برای ورود، حل کپچا، دورزدن محدودیت یا کلیک روی دکمه ثبت ندارد. ثبت نهایی آگهی همیشه توسط اپراتور انسانی انجام می‌شود.
+⛔ **هرگز**:
+- ورود خودکار به حساب دیوار
+- حل کپچا یا دورزدن محدودیت
+- کلیک خودکار روی «ثبت آگهی»
+- ثبت بدون تأیید انسانی
+
+✅ **فقط**:
+- پرکردن فیلدهای متنی (عنوان، توضیحات، قیمت، ویژگی‌ها)
+- هایلایت دکمه ثبت (بدون کلیک)
+- نمایش وضعیت و لاگ
 
 ## اجرا
 
+### سرویس مرکزی
 ```bash
-npm test
-npm start
+npm test            # 21 تست
+npm start           # API روی http://localhost:3000
 ```
 
-API روی `http://localhost:3000` اجرا می‌شود.
+### پنل مدیریت
+```bash
+npm run dev         # React dev server روی http://localhost:5173
+npm run build       # build نهایی در dist/
+```
+
+### اکستنشن Chrome
+1. `chrome://extensions` را باز کن
+2. حالت Developer را فعال کن
+3. روی «بارگذاری بسته‌شده» کلیک کن
+4. پوشه `extension/` را انتخاب کن
+5. مطمئن شو سرور (`npm start`) در حال اجراست
+
+## چرخه عمر وظیفه
+
+```
+نیازمند بررسی → آماده تخصیص → تخصیص‌یافته → آماده ثبت → ثبت‌شده → تأیید شده ✅
+                                                        ↘ رد شده ❌
+```
 
 ## مسیرهای API
 
-| Method | Path | کاربرد |
+| Method | Path | عملکرد |
 |---|---|---|
-| GET | `/health` | بررسی سلامت سرویس |
-| GET | `/api/tasks` | مشاهده taskهای ساخته‌شده |
-| POST | `/api/tasks` | ساخت دستی task از محصول Mock |
-| POST | `/api/tasks/claim-next` | تخصیص task آماده به اپراتور |
-| GET | `/api/tasks/:taskId/prefill?operatorId=...` | دریافت اطلاعات پیش‌پرشده توسط اپراتور تخصیص‌یافته |
-
-### نمونه جریان آزمایشی
-
-```bash
-curl -X POST http://localhost:3000/api/tasks \
-  -H 'content-type: application/json' \
-  -d '{"productId":"phone-001","createdBy":"supervisor-demo"}'
-
-curl -X POST http://localhost:3000/api/tasks/claim-next \
-  -H 'content-type: application/json' \
-  -d '{"operatorId":"operator-demo"}'
-
-curl 'http://localhost:3000/api/tasks/TASK-PILOT-0001/prefill?operatorId=operator-demo'
-```
-
-`phone-002` عمداً فاقد مدل است تا مسیر `needs_review` قابل آزمون باشد.
-
-## موارد خارج از دامنه فاز اول
-
-- اکستنشن مرورگر
-- ذخیره‌سازی دیتابیس و احراز هویت واقعی
-- صف خودکار، نقش‌ها و سهمیه
-- دانلود/آماده‌سازی تصاویر
-- تشخیص ثبت موفق یا ارسال نهایی
+| GET | `/api/health` | سلامت سرویس |
+| GET | `/api/products` | لیست محصولات |
+| GET | `/api/tasks` | لیست وظایف (فیلتر با status/operatorId) |
+| POST | `/api/tasks` | ساخت وظیفه جدید |
+| POST | `/api/tasks/claim-next` | تخصیص وظیفه بعدی |
+| GET | `/api/tasks/:id` | جزئیات وظیفه |
+| GET | `/api/tasks/:id/prefill` | payload پیش‌پرشده |
+| PUT | `/api/tasks/:id/field` | ویرایش فیلد |
+| POST | `/api/tasks/:id/submit` | ثبت توسط اپراتور |
+| POST | `/api/tasks/:id/confirm` | تأیید ثبت موفق |
+| POST | `/api/tasks/:id/reject` | رد ثبت |
+| POST | `/api/tasks/:id/reassign` | تخصیص مجدد |
+| GET | `/api/tasks/:id/audit` | لاگ ممیزی وظیفه |
+| GET | `/api/audit` | لاگ ممیزی سراسری |
+| GET | `/api/stats` | آمار داشبورد |
+| GET | `/api/mapping` | قالب نگاشت فعال |
