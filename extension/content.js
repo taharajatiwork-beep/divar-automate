@@ -367,15 +367,40 @@
     if (!selectFound) { warn('car fields did not load after بعدی'); return; }
     log('car fields loaded!');
 
-    // First controlled regression test: only color. Do not claim success unless
-    // the real trigger text changes from "انتخاب" to the requested color.
-    let selectFilled = 0;
     await sleep(800);
-    try {
-      const ok = await clickDivarDropdownByName('color', String(pf.color));
-      if (ok) selectFilled++;
-    } catch (e) {
-      warn('color select error:', e.message);
+
+    // Fill all select dropdowns (id-based, verified by committed text change)
+    let selectFilled = 0;
+    const selects = [
+      { fieldId: 'fuel_type', value: pf.fuel || 'بنزین' },
+      { fieldId: 'year',      value: pf.year },
+      { fieldId: 'color',     value: pf.color },
+      { fieldId: 'body_status', value: pf.bodyStatus || 'سالم و بی‌خط و خش' },
+      { fieldId: 'gearbox',   value: pf.gearbox },
+    ];
+
+    for (const s of selects) {
+      if (!s.value) continue;
+      try {
+        const ok = await clickDivarDropdownByName(s.fieldId, String(s.value));
+        if (ok) selectFilled++;
+      } catch (e) { warn('select error:', s.fieldId, e.message); }
+    }
+
+    // Brand/model: different component (kt-action-field), uses #brand_model
+    const brandVal = pf.brand && pf.model ? pf.brand + ' ' + pf.model : pf.brand;
+    if (brandVal) {
+      try {
+        const ok = await clickDivarDropdownByName('brand_model', String(brandVal), 'برند و مدل');
+        if (ok) selectFilled++;
+      } catch (e) { warn('brand error:', e.message); }
+    }
+
+    // Mileage (usage) is a text INPUT, not a select
+    const usageEl = document.querySelector('#usage input[name="usage"], #usage input');
+    if (usageEl && pf.mileage && setTextValue(usageEl, String(pf.mileage))) {
+      selectFilled++;
+      log('✅ usage:', pf.mileage);
     }
 
     log('done! text:', filled, 'selects:', selectFilled);
