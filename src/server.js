@@ -125,6 +125,32 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, { prefill: { title: p.title, description: p.description, price: p.price, attributes: p.attributes, category: p.category, city: p.city } });
     }
 
+    // ── Pending prefill (web panel stores, extension reads) ──────
+    if (method === 'POST' && path === '/api/prefill/pending') {
+      requireAuth(user, 'products:read');
+      const body = await readJson(req);
+      if (!body.productId || !body.prefill) return sendJson(res, 400, { error: 'اطلاعات ناقص.' });
+      // Store in memory (volatile, 5 min TTL)
+      if (!globalThis._pendingPrefills) globalThis._pendingPrefills = new Map();
+      globalThis._pendingPrefills.set(user.id, { ...body, timestamp: Date.now(), token: user.token });
+      // Cleanup old entries
+      for (const [k, v] of globalThis._pendingPrefills) {
+        if (Date.now() - v.timestamp > 5 * 60 * 1000) globalThis._pendingPrefills.delete(k);
+      }
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (method === 'GET' && path === '/api/prefill/pending') {
+      // Extension calls this with its token to get pending prefill
+      const pending = globalThis._pendingPrefills?.get(user.id);
+      if (!pending || Date.now() - pending.timestamp > 5 * 60 * 1000) {
+        return sendJson(res, 200, { prefill: null });
+      }
+      // One-time: delete after reading
+      globalThis._pendingPrefills.delete(user.id);
+      return sendJson(res, 200, { prefill: pending.prefill, productId: pending.productId });
+    }
+
     if (method === 'POST' && path === '/api/products') {
       requireAuth(user, 'task:create');
       const body = await readJson(req);

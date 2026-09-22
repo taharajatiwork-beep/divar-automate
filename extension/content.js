@@ -28,6 +28,7 @@
   // ══════════════════════════════════════════════════════════════════
   // MESSAGE HANDLER — from background.js
   // ══════════════════════════════════════════════════════════════════
+  // ── Listen for messages from background (extension popup) ──
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.action === 'fillReady' && msg.prefill) {
       currentPrefill = msg.prefill;
@@ -461,7 +462,21 @@
   if (isAdFormPage()) {
     log('صفحه فرم آگهی شناسایی شد:', location.href);
 
-    // Try to get existing state from background
+    // Poll API for pending prefill from web panel
+    try {
+      const r = await fetch('http://localhost:3000/api/prefill/pending', {
+        headers: { 'Authorization': 'Bearer ' + (await chrome.storage.local.get('authToken')).authToken }
+      });
+      const d = await r.json();
+      if (d.prefill) {
+        currentPrefill = d.prefill;
+        log('prefill از API بازیابی شد:', d.productId);
+        waitForFormReady().then(() => showIndicator());
+        return;
+      }
+    } catch (e) { warn('خطا در دریافت prefill:', e); }
+
+    // Fallback: try background
     chrome.runtime.sendMessage({ action: 'getStatus' }, (response) => {
       if (chrome.runtime.lastError) {
         warn('خطا:', chrome.runtime.lastError.message);
@@ -484,6 +499,21 @@
       if (isAdFormPage()) {
         log('ناوبری SPA به فرم آگهی — بررسی وضعیت...');
         autoFilled = false;
+
+        // Poll API for pending prefill
+        try {
+          const r = await fetch('http://localhost:3000/api/prefill/pending', {
+            headers: { 'Authorization': 'Bearer ' + (await chrome.storage.local.get('authToken')).authToken }
+          });
+          const d = await r.json();
+          if (d.prefill) {
+            currentPrefill = d.prefill;
+            waitForFormReady().then(() => showIndicator());
+            return;
+          }
+        } catch (e) {}
+
+        // Fallback: background
         chrome.runtime.sendMessage({ action: 'getStatus' }, (response) => {
           if (response?.success && response.prefill) {
             currentPrefill = response.prefill;

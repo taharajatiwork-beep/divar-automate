@@ -16,11 +16,9 @@
       "https://cdn.example.test/P001/02.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T09:22:30.661Z",
-    "updatedAt": "2026-09-22T09:22:30.661Z",
-    "status": "locked",
-    "locked_by": "op-ali",
-    "locked_at": "2026-09-22T09:28:06.255Z"
+    "createdAt": "2026-09-22T09:46:30.219Z",
+    "updatedAt": "2026-09-22T09:46:30.219Z",
+    "status": "active"
   },
   {
     "id": "P002",
@@ -38,8 +36,8 @@
       "https://cdn.example.test/P002/01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T09:22:30.661Z",
-    "updatedAt": "2026-09-22T09:22:30.661Z",
+    "createdAt": "2026-09-22T09:46:30.219Z",
+    "updatedAt": "2026-09-22T09:46:30.219Z",
     "status": "active"
   },
   {
@@ -59,8 +57,8 @@
       "https://cdn.example.test/P003/02.jpg"
     ],
     "city": "اصفهان",
-    "createdAt": "2026-09-22T09:22:30.661Z",
-    "updatedAt": "2026-09-22T09:22:30.661Z",
+    "createdAt": "2026-09-22T09:46:30.219Z",
+    "updatedAt": "2026-09-22T09:46:30.219Z",
     "status": "active"
   },
   {
@@ -79,8 +77,8 @@
       "https://cdn.example.test/P004/01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T09:22:30.661Z",
-    "updatedAt": "2026-09-22T09:22:30.661Z",
+    "createdAt": "2026-09-22T09:46:30.219Z",
+    "updatedAt": "2026-09-22T09:46:30.219Z",
     "status": "active"
   },
   {
@@ -97,8 +95,8 @@
     },
     "images": [],
     "city": "شیراز",
-    "createdAt": "2026-09-22T09:22:30.661Z",
-    "updatedAt": "2026-09-22T09:22:30.661Z",
+    "createdAt": "2026-09-22T09:46:30.219Z",
+    "updatedAt": "2026-09-22T09:46:30.219Z",
     "status": "active"
   },
   {
@@ -120,8 +118,8 @@
       "https://cdn.example.test/P006/01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T09:22:30.661Z",
-    "updatedAt": "2026-09-22T09:22:30.661Z",
+    "createdAt": "2026-09-22T09:46:30.219Z",
+    "updatedAt": "2026-09-22T09:46:30.219Z",
     "status": "active"
   },
   {
@@ -144,8 +142,8 @@
       "https://cdn.example.test/P007/02.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T09:22:30.661Z",
-    "updatedAt": "2026-09-22T09:22:30.661Z",
+    "createdAt": "2026-09-22T09:46:30.219Z",
+    "updatedAt": "2026-09-22T09:46:30.219Z",
     "status": "active"
   },
   {
@@ -167,8 +165,8 @@
       "https://cdn.example.test/P008/01.jpg"
     ],
     "city": "تبریز",
-    "createdAt": "2026-09-22T09:22:30.661Z",
-    "updatedAt": "2026-09-22T09:22:30.661Z",
+    "createdAt": "2026-09-22T09:46:30.219Z",
+    "updatedAt": "2026-09-22T09:46:30.219Z",
     "status": "active"
   },
   {
@@ -186,8 +184,8 @@
       "https://cdn.example.test/P009/01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T09:22:30.661Z",
-    "updatedAt": "2026-09-22T09:22:30.661Z",
+    "createdAt": "2026-09-22T09:46:30.219Z",
+    "updatedAt": "2026-09-22T09:46:30.219Z",
     "status": "active"
   },
   {
@@ -205,8 +203,8 @@
       "https://cdn.example.test/P010/01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T09:22:30.661Z",
-    "updatedAt": "2026-09-22T09:22:30.661Z",
+    "createdAt": "2026-09-22T09:46:30.219Z",
+    "updatedAt": "2026-09-22T09:46:30.219Z",
     "status": "active"
   },
   {
@@ -224,8 +222,8 @@
       "https://cdn.example.test/P011/01.jpg"
     ],
     "city": "کرمان",
-    "createdAt": "2026-09-22T09:22:30.661Z",
-    "updatedAt": "2026-09-22T09:22:30.661Z",
+    "createdAt": "2026-09-22T09:46:30.219Z",
+    "updatedAt": "2026-09-22T09:46:30.219Z",
     "status": "active"
   }
 ]
