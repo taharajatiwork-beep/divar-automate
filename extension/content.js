@@ -428,10 +428,9 @@
   function isAdFormPage() {
     const url = window.location.href;
     return url.includes('divar.ir') && (
-      url.includes('/v/new') ||
-      url.includes('/v/create') ||
-      url.includes('/new/') ||
-      url.includes('/create/')
+      url.includes('/new') ||
+      url.includes('/create') ||
+      url.includes('/submit')
     );
   }
 
@@ -463,32 +462,35 @@
     log('صفحه فرم آگهی شناسایی شد:', location.href);
 
     // Poll API for pending prefill from web panel
-    try {
-      const r = await fetch('http://localhost:3000/api/prefill/pending', {
-        headers: { 'Authorization': 'Bearer ' + (await chrome.storage.local.get('authToken')).authToken }
-      });
-      const d = await r.json();
-      if (d.prefill) {
-        currentPrefill = d.prefill;
-        log('prefill از API بازیابی شد:', d.productId);
-        waitForFormReady().then(() => showIndicator());
-        return;
-      }
-    } catch (e) { warn('خطا در دریافت prefill:', e); }
+    (async () => {
+      try {
+        const tokenData = await chrome.storage.local.get('authToken');
+        const r = await fetch('http://localhost:3000/api/prefill/pending', {
+          headers: { 'Authorization': 'Bearer ' + tokenData.authToken }
+        });
+        const d = await r.json();
+        if (d.prefill) {
+          currentPrefill = d.prefill;
+          log('prefill از API بازیابی شد:', d.productId);
+          waitForFormReady().then(() => showIndicator());
+          return;
+        }
+      } catch (e) { warn('خطا در دریافت prefill:', e); }
 
-    // Fallback: try background
-    chrome.runtime.sendMessage({ action: 'getStatus' }, (response) => {
-      if (chrome.runtime.lastError) {
-        warn('خطا:', chrome.runtime.lastError.message);
-        return;
-      }
-      if (response?.success && response.prefill) {
-        currentPrefill = response.prefill;
-        currentTaskId = response.taskId;
-        log('وضعیت از background بازیابی شد:', currentTaskId);
-        waitForFormReady().then(() => showIndicator());
-      }
-    });
+      // Fallback: try background
+      chrome.runtime.sendMessage({ action: 'getStatus' }, (response) => {
+        if (chrome.runtime.lastError) {
+          warn('خطا:', chrome.runtime.lastError.message);
+          return;
+        }
+        if (response?.success && response.prefill) {
+          currentPrefill = response.prefill;
+          currentTaskId = response.taskId;
+          log('وضعیت از background بازیابی شد:', currentTaskId);
+          waitForFormReady().then(() => showIndicator());
+        }
+      });
+    })();
   }
 
   // Watch for SPA navigation (Divar is a React SPA)
@@ -501,26 +503,29 @@
         autoFilled = false;
 
         // Poll API for pending prefill
-        try {
-          const r = await fetch('http://localhost:3000/api/prefill/pending', {
-            headers: { 'Authorization': 'Bearer ' + (await chrome.storage.local.get('authToken')).authToken }
-          });
-          const d = await r.json();
-          if (d.prefill) {
-            currentPrefill = d.prefill;
-            waitForFormReady().then(() => showIndicator());
-            return;
-          }
-        } catch (e) {}
+        (async () => {
+          try {
+            const tokenData = await chrome.storage.local.get('authToken');
+            const r = await fetch('http://localhost:3000/api/prefill/pending', {
+              headers: { 'Authorization': 'Bearer ' + tokenData.authToken }
+            });
+            const d = await r.json();
+            if (d.prefill) {
+              currentPrefill = d.prefill;
+              waitForFormReady().then(() => showIndicator());
+              return;
+            }
+          } catch (e) {}
 
-        // Fallback: background
-        chrome.runtime.sendMessage({ action: 'getStatus' }, (response) => {
-          if (response?.success && response.prefill) {
-            currentPrefill = response.prefill;
-            currentTaskId = response.taskId;
-            waitForFormReady().then(() => showIndicator());
-          }
-        });
+          // Fallback: background
+          chrome.runtime.sendMessage({ action: 'getStatus' }, (response) => {
+            if (response?.success && response.prefill) {
+              currentPrefill = response.prefill;
+              currentTaskId = response.taskId;
+              waitForFormReady().then(() => showIndicator());
+            }
+          });
+        })();
       } else {
         removeIndicator();
       }

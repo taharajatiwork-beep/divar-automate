@@ -12,5 +12,26 @@
     "operatorId": "op-ali",
     "id": "A00002",
     "timestamp": "2026-09-22T09:28:06.256Z"
+  },
+  {
+    "action": "product_locked",
+    "productId": "P001",
+    "operatorId": "op-ali",
+    "id": "A00003",
+    "timestamp": "2026-09-22T09:47:46.693Z"
+  },
+  {
+    "action": "product_unlocked",
+    "productId": "P001",
+    "operatorId": "op-ali",
+    "id": "A00004",
+    "timestamp": "2026-09-22T09:48:05.401Z"
+  },
+  {
+    "action": "product_locked",
+    "productId": "P003",
+    "operatorId": "op-ali",
+    "id": "A00005",
+    "timestamp": "2026-09-22T09:48:06.513Z"
   }
 ]

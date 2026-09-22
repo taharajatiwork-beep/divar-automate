@@ -2,7 +2,7 @@
 // Auth + auto-open + smart assign + multi-role support.
 
 const API_BASE = 'http://localhost:3000';
-const DIVAR_AD_URL = 'https://divar.ir/v/new';
+const DIVAR_AD_URL = 'https://divar.ir/new';
 
 // ── State ───────────────────────────────────────────────────────────
 let currentTask = null;
