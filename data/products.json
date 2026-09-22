@@ -7,9 +7,9 @@
     "category": "vehicles",
     "attributes": {
       "brand": "پژو",
-      "model": "۲۰۶ تیپ ۵",
-      "year": "۱۳۹۸",
-      "mileage": "۸۵,۰۰۰ کیلومتر",
+      "model": "206 تیپ 5",
+      "year": "1398",
+      "mileage": "85,000 کیلومتر",
       "color": "سفید",
       "gearbox": "دنده دستی"
     },
@@ -17,11 +17,9 @@
       "/images/P001_01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T11:53:41.526Z",
-    "updatedAt": "2026-09-22T11:53:41.526Z",
-    "status": "locked",
-    "locked_by": "op-ali",
-    "locked_at": "2026-09-22T12:06:09.505Z"
+    "createdAt": "2026-09-22T12:22:35.994Z",
+    "updatedAt": "2026-09-22T12:22:35.994Z",
+    "status": "active"
   },
   {
     "id": "P002",
@@ -31,9 +29,9 @@
     "category": "vehicles",
     "attributes": {
       "brand": "پژو",
-      "model": "۲۰۷ اتوماتیک",
-      "year": "۱۴۰۱",
-      "mileage": "۴۲,۰۰۰ کیلومتر",
+      "model": "207 اتوماتیک",
+      "year": "1401",
+      "mileage": "42,000 کیلومتر",
       "color": "مشکی",
       "gearbox": "اتوماتیک"
     },
@@ -41,8 +39,8 @@
       "/images/P002_01.jpg"
     ],
     "city": "اصفهان",
-    "createdAt": "2026-09-22T11:53:41.526Z",
-    "updatedAt": "2026-09-22T11:53:41.526Z",
+    "createdAt": "2026-09-22T12:22:35.994Z",
+    "updatedAt": "2026-09-22T12:22:35.994Z",
     "status": "active"
   },
   {
@@ -54,8 +52,8 @@
     "attributes": {
       "brand": "ایران خودرو",
       "model": "سمند EF7",
-      "year": "۱۳۹۷",
-      "mileage": "۱۱۰,۰۰۰ کیلومتر",
+      "year": "1397",
+      "mileage": "110,000 کیلومتر",
       "color": "نقره‌ای",
       "gearbox": "دنده دستی"
     },
@@ -63,8 +61,8 @@
       "/images/P003_01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T11:53:41.526Z",
-    "updatedAt": "2026-09-22T11:53:41.526Z",
+    "createdAt": "2026-09-22T12:22:35.994Z",
+    "updatedAt": "2026-09-22T12:22:35.994Z",
     "status": "active"
   },
   {
@@ -75,9 +73,9 @@
     "category": "vehicles",
     "attributes": {
       "brand": "سایپا",
-      "model": "تیبا ۲",
-      "year": "۱۳۹۹",
-      "mileage": "۶۵,۰۰۰ کیلومتر",
+      "model": "تیبا 2",
+      "year": "1399",
+      "mileage": "65,000 کیلومتر",
       "color": "قرمز",
       "gearbox": "دنده دستی"
     },
@@ -85,8 +83,8 @@
       "/images/P004_01.jpg"
     ],
     "city": "شیراز",
-    "createdAt": "2026-09-22T11:53:41.526Z",
-    "updatedAt": "2026-09-22T11:53:41.526Z",
+    "createdAt": "2026-09-22T12:22:35.994Z",
+    "updatedAt": "2026-09-22T12:22:35.994Z",
     "status": "active"
   },
   {
@@ -98,8 +96,8 @@
     "attributes": {
       "brand": "کیا",
       "model": "سراتو",
-      "year": "۱۳۹۶",
-      "mileage": "۹۵,۰۰۰ کیلومتر",
+      "year": "1396",
+      "mileage": "95,000 کیلومتر",
       "color": "خاکستری",
       "gearbox": "اتوماتیک"
     },
@@ -107,8 +105,8 @@
       "/images/P005_01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T11:53:41.526Z",
-    "updatedAt": "2026-09-22T11:53:41.526Z",
+    "createdAt": "2026-09-22T12:22:35.994Z",
+    "updatedAt": "2026-09-22T12:22:35.994Z",
     "status": "active"
   },
   {
@@ -120,8 +118,8 @@
     "attributes": {
       "brand": "تویوتا",
       "model": "کمری",
-      "year": "۱۴۰۰",
-      "mileage": "۳۰,۰۰۰ کیلومتر",
+      "year": "1400",
+      "mileage": "30,000 کیلومتر",
       "color": "سفید",
       "gearbox": "اتوماتیک"
     },
@@ -129,11 +127,9 @@
       "/images/P006_01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T11:53:41.526Z",
-    "updatedAt": "2026-09-22T11:53:41.526Z",
-    "status": "locked",
-    "locked_by": "op-ali",
-    "locked_at": "2026-09-22T11:56:59.452Z"
+    "createdAt": "2026-09-22T12:22:35.994Z",
+    "updatedAt": "2026-09-22T12:22:35.994Z",
+    "status": "active"
   },
   {
     "id": "P007",
@@ -144,8 +140,8 @@
     "attributes": {
       "brand": "هیوندای",
       "model": "النترا",
-      "year": "۱۳۹۸",
-      "mileage": "۵۸,۰۰۰ کیلومتر",
+      "year": "1398",
+      "mileage": "58,000 کیلومتر",
       "color": "آبی تیره",
       "gearbox": "اتوماتیک"
     },
@@ -153,8 +149,8 @@
       "/images/P007_01.jpg"
     ],
     "city": "تبریز",
-    "createdAt": "2026-09-22T11:53:41.526Z",
-    "updatedAt": "2026-09-22T11:53:41.526Z",
+    "createdAt": "2026-09-22T12:22:35.994Z",
+    "updatedAt": "2026-09-22T12:22:35.994Z",
     "status": "active"
   },
   {
@@ -165,9 +161,9 @@
     "category": "vehicles",
     "attributes": {
       "brand": "سایپا",
-      "model": "پراید ۱۳۲",
-      "year": "۱۳۹۵",
-      "mileage": "۱۵۰,۰۰۰ کیلومتر",
+      "model": "پراید 132",
+      "year": "1395",
+      "mileage": "150,000 کیلومتر",
       "color": "سفید",
       "gearbox": "دنده دستی"
     },
@@ -175,8 +171,8 @@
       "/images/P008_01.jpg"
     ],
     "city": "کرمان",
-    "createdAt": "2026-09-22T11:53:41.526Z",
-    "updatedAt": "2026-09-22T11:53:41.526Z",
+    "createdAt": "2026-09-22T12:22:35.994Z",
+    "updatedAt": "2026-09-22T12:22:35.994Z",
     "status": "active"
   },
   {
@@ -188,8 +184,8 @@
     "attributes": {
       "brand": "ایران خودرو",
       "model": "رانا",
-      "year": "۱۴۰۰",
-      "mileage": "۳۸,۰۰۰ کیلومتر",
+      "year": "1400",
+      "mileage": "38,000 کیلومتر",
       "color": "سرمه‌ای",
       "gearbox": "دنده دستی"
     },
@@ -197,8 +193,8 @@
       "/images/P009_01.jpg"
     ],
     "city": "اصفهان",
-    "createdAt": "2026-09-22T11:53:41.526Z",
-    "updatedAt": "2026-09-22T11:53:41.526Z",
+    "createdAt": "2026-09-22T12:22:35.994Z",
+    "updatedAt": "2026-09-22T12:22:35.994Z",
     "status": "active"
   },
   {
@@ -210,8 +206,8 @@
     "attributes": {
       "brand": "ایران خودرو",
       "model": "دنا پلاس",
-      "year": "۱۴۰۲",
-      "mileage": "۱۲,۰۰۰ کیلومتر",
+      "year": "1402",
+      "mileage": "12,000 کیلومتر",
       "color": "مشکی",
       "gearbox": "دنده دستی"
     },
@@ -219,8 +215,8 @@
       "/images/P010_01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T11:53:41.526Z",
-    "updatedAt": "2026-09-22T11:53:41.526Z",
+    "createdAt": "2026-09-22T12:22:35.994Z",
+    "updatedAt": "2026-09-22T12:22:35.994Z",
     "status": "active"
   }
 ]

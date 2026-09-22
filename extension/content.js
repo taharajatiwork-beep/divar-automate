@@ -107,48 +107,85 @@
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // DIVAR DROPDOWN CLICKER — opens select and picks option
+  // DIVAR DROPDOWN — click trigger, modal opens, pick option
   // ══════════════════════════════════════════════════════════════════
   async function clickDivarDropdown(labelText, optionText) {
-    // Find the dropdown trigger by label text
-    const labels = [...document.querySelectorAll('label, div, span, h3, h4')];
-    const labelEl = labels.find(el => {
+    if (!optionText) return false;
+
+    // Find the label element near the select
+    const allEls = [...document.querySelectorAll('*')];
+    const labelEl = allEls.find(el => {
       const t = (el.textContent || '').trim();
-      return t.includes(labelText) && el.offsetParent !== null;
+      return t === labelText && el.offsetParent && el.children.length === 0;
     });
-    if (!labelEl) { warn('dropdown not found:', labelText); return false; }
+    if (!labelEl) { warn('label not found:', labelText); return false; }
 
-    // Find clickable element near the label (the select trigger)
-    let trigger = labelEl;
-    for (let i = 0; i < 5; i++) {
-      trigger = trigger.parentElement;
-      if (!trigger) break;
-      const btn = trigger.querySelector('button, [role="combobox"], [class*="select"], [class*="dropdown"]');
-      if (btn && btn.offsetParent) { trigger = btn; break; }
+    // Walk up to find the kt-dropdown-menu container, then find the button inside
+    let container = labelEl.parentElement;
+    let trigger = null;
+    for (let i = 0; i < 6 && container; i++) {
+      trigger = container.querySelector('button.kt-select-field, button[class*="select"], button[class*="action-field"]');
+      if (trigger && trigger.offsetParent) break;
+      trigger = null;
+      container = container.parentElement;
     }
+    if (!trigger) { warn('trigger not found:', labelText); return false; }
 
-    // Click to open
+    // Click to open modal
     trigger.click();
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 1000));
 
-    // Find and click the option
-    const options = [...document.querySelectorAll('[role="option"], [role="menuitem"], li, div')];
-    const option = options.find(el => {
-      const t = (el.textContent || '').trim();
-      return t === optionText && el.offsetParent !== null;
-    });
+    // Look for kt-modal with options
+    const modal = document.querySelector('.kt-modal');
+    if (!modal) { warn('modal not opened for:', labelText); return false; }
 
-    if (option) {
-      option.click();
-      log('✅ select:', labelText, '=', optionText);
+    // Try to type in search input to filter
+    const searchInput = modal.querySelector('input[type="text"], input[type="search"]');
+    if (searchInput) {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      if (setter) setter.call(searchInput, optionText);
+      else searchInput.value = optionText;
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
       await new Promise(r => setTimeout(r, 500));
-      return true;
     }
 
-    warn('option not found:', optionText);
-    // Press Escape to close dropdown
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    return false;
+    // Find and click the matching option row
+    const rows = [...modal.querySelectorAll('.kt-base-row, [class*="base-row"]')];
+    let clicked = false;
+    for (const row of rows) {
+      if (!row.offsetParent) continue;
+      const text = (row.textContent || '').trim();
+      if (text.includes(optionText) || optionText.includes(text)) {
+        row.click();
+        log('\u2705 select:', labelText, '=', text.substring(0, 30));
+        clicked = true;
+        break;
+      }
+    }
+
+    if (!clicked) {
+      // Try broader search — any div with the text inside modal
+      const divs = [...modal.querySelectorAll('div, span, p')];
+      for (const d of divs) {
+        const t = (d.textContent || '').trim();
+        if (t === optionText && d.offsetParent) {
+          d.click();
+          log('\u2705 select (broad):', labelText, '=', t);
+          clicked = true;
+          break;
+        }
+      }
+    }
+
+    if (!clicked) {
+      warn('option not found:', optionText);
+      // Press Escape to close modal
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    await new Promise(r => setTimeout(r, 500));
+    return clicked;
   }
 
   // ══════════════════════════════════════════════════════════════════
