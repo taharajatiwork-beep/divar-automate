@@ -3,10 +3,12 @@ import { createServer } from 'node:http';
 import { mockProducts } from './mock-products.js';
 import { createPilotService } from './pilot-service.js';
 import { createAuthService, authMiddleware } from './auth.js';
+import { createCategoryService } from './categories.js';
 import { createQuotaService } from './quota.js';
 import { createImageService } from './images.js';
 
-const service = createPilotService({ products: mockProducts });
+const categoryService = createCategoryService();
+const service = createPilotService({ products: mockProducts, categoryService });
 const authService = createAuthService();
 const quotaService = createQuotaService();
 const imageService = createImageService();
@@ -46,7 +48,7 @@ const server = createServer(async (req, res) => {
 
     // ── Public ─────────────────────────────────────────────────────
     if (method === 'GET' && path === '/api/health') {
-      return sendJson(res, 200, { status: 'ok', pilot: 'manual-submit-only', phase: 2 });
+      return sendJson(res, 200, { status: 'ok', pilot: 'manual-submit-only', phase: 4 });
     }
 
     // ── Auth: login ────────────────────────────────────────────────
@@ -77,15 +79,67 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, { success: true });
     }
 
+    // ── Categories & Templates ────────────────────────────────────
+    if (method === 'GET' && path === '/api/categories') {
+      requireAuth(user, 'mapping:read');
+      return sendJson(res, 200, { categories: categoryService.listTemplates() });
+    }
+
+    if (method === 'GET' && path === '/api/categories/active') {
+      return sendJson(res, 200, { categories: categoryService.getActiveTemplates().map(t => ({ id: t.id, label: t.label, icon: t.icon })) });
+    }
+
+    if (method === 'GET' && path.match(/^\/api\/categories\/[^/]+$/)) {
+      requireAuth(user, 'mapping:read');
+      const catId = path.split('/').pop();
+      const template = categoryService.getTemplate(catId);
+      return sendJson(res, 200, { template });
+    }
+
+    if (method === 'PUT' && path.match(/^\/api\/categories\/[^/]+$/)) {
+      requireAuth(user, 'mapping:edit');
+      const catId = path.split('/').pop();
+      const body = await readJson(req);
+      const updated = categoryService.updateTemplate({ templateId: catId, fields: body.fields, supervisorId: user.id });
+      return sendJson(res, 200, { template: updated });
+    }
+
+    if (method === 'POST' && path === '/api/categories/review') {
+      requireAuth(user, 'mapping:edit');
+      const body = await readJson(req);
+      if (!body.templateId) return sendJson(res, 400, { error: 'templateId الزامی است.' });
+      const reviewed = categoryService.reviewTemplate({
+        templateId: body.templateId,
+        approved: body.approved !== false,
+        notes: body.notes,
+        reviewerId: user.id,
+      });
+      return sendJson(res, 200, { template: reviewed });
+    }
+
+    if (method === 'GET' && path === '/api/categories/pending-review') {
+      requireAuth(user, 'mapping:edit');
+      return sendJson(res, 200, { templates: categoryService.getPendingReview() });
+    }
+
+    if (method === 'GET' && path === '/api/categories/history') {
+      requireAuth(user, 'audit:read');
+      const templateId = url.searchParams.get('templateId') || undefined;
+      return sendJson(res, 200, { history: categoryService.getReviewHistory({ templateId }) });
+    }
+
     // ── Products ───────────────────────────────────────────────────
     if (method === 'GET' && path === '/api/products') {
-      return sendJson(res, 200, { products: service.listProducts() });
+      const category = url.searchParams.get('category') || undefined;
+      return sendJson(res, 200, { products: service.listProducts({ category }) });
     }
 
     // ── Batch create ───────────────────────────────────────────────
     if (method === 'POST' && path === '/api/tasks/batch') {
       requireAuth(user, 'task:batch_create');
-      const created = service.batchCreateTasks({ createdBy: user.id });
+      const body = await readJson(req).catch(() => ({}));
+      const category = body.category || undefined;
+      const created = service.batchCreateTasks({ createdBy: user.id, category });
       return sendJson(res, 201, { tasks: created, count: created.length });
     }
 
@@ -101,7 +155,8 @@ const server = createServer(async (req, res) => {
     if (method === 'GET' && path === '/api/tasks') {
       const status = url.searchParams.get('status') || undefined;
       const operatorId = url.searchParams.get('operatorId') || undefined;
-      return sendJson(res, 200, { tasks: service.listTasks({ status, operatorId }) });
+      const category = url.searchParams.get('category') || undefined;
+      return sendJson(res, 200, { tasks: service.listTasks({ status, operatorId, category }) });
     }
 
     if (method === 'POST' && path === '/api/tasks') {
@@ -118,7 +173,6 @@ const server = createServer(async (req, res) => {
       const taskId = taskMatch[1];
       const subPath = taskMatch[2] || '';
 
-      // GET /api/tasks/:id
       if (method === 'GET' && subPath === '') {
         const tasks = service.listTasks();
         const task = tasks.find(t => t.id === taskId);
@@ -126,20 +180,17 @@ const server = createServer(async (req, res) => {
         return sendJson(res, 200, { task });
       }
 
-      // POST /api/tasks/:id/claim (operator claims this specific task)
       if (method === 'POST' && subPath === '/claim') {
         requireAuth(user, 'task:claim');
         const claimed = service.claimNextTask({ operatorId: user.id });
         return sendJson(res, 200, { task: claimed });
       }
 
-      // GET /api/tasks/:id/prefill
       if (method === 'GET' && subPath === '/prefill') {
         const prefill = service.getPrefillPayload({ taskId, operatorId: user.id });
         return sendJson(res, 200, { prefill });
       }
 
-      // PUT /api/tasks/:id/field
       if (method === 'PUT' && subPath === '/field') {
         requireAuth(user, 'task:edit_own');
         const body = await readJson(req);
@@ -150,21 +201,18 @@ const server = createServer(async (req, res) => {
         return sendJson(res, 200, { task });
       }
 
-      // POST /api/tasks/:id/submit
       if (method === 'POST' && subPath === '/submit') {
         requireAuth(user, 'task:submit_own');
         const task = service.markSubmitted({ taskId, operatorId: user.id });
         return sendJson(res, 200, { task });
       }
 
-      // POST /api/tasks/:id/confirm
       if (method === 'POST' && subPath === '/confirm') {
         requireAuth(user, 'task:confirm');
         const task = service.confirmTask({ taskId, supervisorId: user.id });
         return sendJson(res, 200, { task });
       }
 
-      // POST /api/tasks/:id/reject
       if (method === 'POST' && subPath === '/reject') {
         requireAuth(user, 'task:reject');
         const body = await readJson(req);
@@ -172,7 +220,6 @@ const server = createServer(async (req, res) => {
         return sendJson(res, 200, { task });
       }
 
-      // POST /api/tasks/:id/reassign
       if (method === 'POST' && subPath === '/reassign') {
         requireAuth(user, 'task:reassign');
         const body = await readJson(req);
@@ -181,7 +228,6 @@ const server = createServer(async (req, res) => {
         return sendJson(res, 200, { task });
       }
 
-      // GET /api/tasks/:id/audit
       if (method === 'GET' && subPath === '/audit') {
         requireAuth(user, 'audit:read');
         const logs = service.getAuditLog({ taskId });
@@ -201,7 +247,7 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, { stats: service.getStatsV2() });
     }
 
-    // ── Mapping ────────────────────────────────────────────────────
+    // ── Mapping (backward compat) ──────────────────────────────────
     if (method === 'GET' && path === '/api/mapping') {
       requireAuth(user, 'mapping:read');
       return sendJson(res, 200, { mapping: service.getMapping() });
@@ -274,6 +320,7 @@ const server = createServer(async (req, res) => {
 
 const port = Number(process.env.PORT ?? 3000);
 server.listen(port, () => {
-  console.log(`Divar Pilot API v2 → http://localhost:${port}`);
+  console.log(`Divar Pilot API v4 → http://localhost:${port}`);
   console.log(`Users: ${authService.listUsers().map(u => `${u.name}(${u.role})`).join(', ')}`);
+  console.log(`Categories: ${categoryService.listTemplates().map(t => `${t.icon} ${t.label}`).join(', ')}`);
 });

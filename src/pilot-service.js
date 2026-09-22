@@ -19,23 +19,6 @@ const STATUS_ORDER = [
   TASK_STATUS.REJECTED,
 ];
 
-// ─── Mapping Templates ──────────────────────────────────────────────
-const activeMobilePhoneMapping = Object.freeze({
-  version: 1,
-  targetCategory: 'mobile-phones',
-  label: 'موبایل',
-  fields: [
-    { target: 'title',             source: 'title',             label: 'عنوان',     required: true  },
-    { target: 'description',       source: 'description',       label: 'توضیحات',   required: true  },
-    { target: 'price',             source: 'price',             label: 'قیمت',      required: true  },
-    { target: 'category',          source: 'category',          label: 'دسته‌بندی',  required: true  },
-    { target: 'attributes.brand',  source: 'attributes.brand',  label: 'برند',      required: true  },
-    { target: 'attributes.model',  source: 'attributes.model',  label: 'مدل',       required: true  },
-    { target: 'attributes.storage', source: 'attributes.storage', label: 'حافظه',   required: false },
-    { target: 'images',            source: 'images',            label: 'تصاویر',    required: true  },
-  ],
-});
-
 // ─── Helpers ────────────────────────────────────────────────────────
 function getValue(source, path) {
   return path.split('.').reduce((v, k) => v?.[k], source);
@@ -66,11 +49,39 @@ function buildPayload(product, mapping) {
 }
 
 // ─── Service Factory ────────────────────────────────────────────────
-export function createPilotService({ products = [] } = {}) {
+export function createPilotService({ products = [], categoryService = null } = {}) {
   const productsById = new Map(products.map(p => [p.id, structuredClone(p)]));
   const tasks = [];
-  const auditLogs = [];      // global audit trail
+  const auditLogs = [];
   let taskSequence = 0;
+
+  // If no categoryService provided, create one (for backward compat)
+  const cats = categoryService || (() => {
+    // Minimal inline fallback for tests that don't pass categoryService
+    const fallbackTemplate = {
+      id: 'mobile-phones',
+      label: 'موبایل',
+      version: 1,
+      status: 'active',
+      fields: [
+        { target: 'title',              source: 'title',              label: 'عنوان',     required: true  },
+        { target: 'description',        source: 'description',        label: 'توضیحات',   required: true  },
+        { target: 'price',              source: 'price',              label: 'قیمت',      required: true  },
+        { target: 'category',           source: 'category',           label: 'دسته‌بندی',  required: true  },
+        { target: 'attributes.brand',   source: 'attributes.brand',   label: 'برند',      required: true  },
+        { target: 'attributes.model',   source: 'attributes.model',   label: 'مدل',       required: true  },
+        { target: 'attributes.storage', source: 'attributes.storage', label: 'حافظه',     required: false },
+        { target: 'images',             source: 'images',             label: 'تصاویر',    required: true  },
+      ],
+    };
+    return {
+      getTemplateForProduct(cat) {
+        if (cat === 'mobile-phones') return structuredClone(fallbackTemplate);
+        return null;
+      },
+      getActiveTemplates() { return [structuredClone(fallbackTemplate)]; },
+    };
+  })();
 
   function getTaskOrThrow(taskId) {
     const task = tasks.find(t => t.id === taskId);
@@ -107,17 +118,20 @@ export function createPilotService({ products = [] } = {}) {
     createTask({ productId, createdBy }) {
       const product = productsById.get(productId);
       if (!product) throw new Error('محصول پیدا نشد.');
-      if (product.category !== activeMobilePhoneMapping.targetCategory) {
-        throw new Error('این پایلوت فقط از دسته‌بندی موبایل پشتیبانی می‌کند.');
-      }
-      const { payload, validationErrors } = buildPayload(product, activeMobilePhoneMapping);
+
+      const mapping = cats.getTemplateForProduct(product.category);
+      if (!mapping) throw new Error(`قالب نگاشتی برای دسته‌بندی «${product.category}» یافت نشد.`);
+
+      const { payload, validationErrors } = buildPayload(product, mapping);
       const id = `TASK-${String(++taskSequence).padStart(4, '0')}`;
       const task = {
         id,
         productId,
+        category: product.category,
         createdBy,
         createdAt: new Date().toISOString(),
-        mappingVersion: activeMobilePhoneMapping.version,
+        mappingId: mapping.id,
+        mappingVersion: mapping.version,
         originalProduct: structuredClone(product),
         payload: structuredClone(payload),
         validationErrors,
@@ -126,7 +140,7 @@ export function createPilotService({ products = [] } = {}) {
         submittedAt: null,
         confirmedAt: null,
         rejectionReason: null,
-        fieldEdits: [],       // track which fields operator changed
+        fieldEdits: [],
         status: validationErrors.length > 0
           ? TASK_STATUS.NEEDS_REVIEW
           : TASK_STATUS.READY_FOR_ASSIGNMENT,
@@ -139,7 +153,7 @@ export function createPilotService({ products = [] } = {}) {
         action: 'task_created',
         field: null,
         oldValue: null,
-        newValue: { productId, mappingVersion: task.mappingVersion },
+        newValue: { productId, category: product.category, mappingId: mapping.id, mappingVersion: mapping.version },
       });
 
       return structuredClone(task);
@@ -172,18 +186,18 @@ export function createPilotService({ products = [] } = {}) {
       if (operatorId && task.assignedOperatorId !== operatorId) {
         throw new Error('به این وظیفه دسترسی ندارید.');
       }
-      const { title, description, price, category, attributes, images } = task.payload;
       return {
         taskId: task.id,
+        category: task.category,
+        mappingId: task.mappingId,
         status: task.status,
-        fields: { title, description, price, category, attributes: structuredClone(attributes ?? {}) },
-        images: structuredClone(images ?? []),
+        fields: structuredClone(task.payload),
         validationErrors: task.validationErrors,
         fieldEdits: structuredClone(task.fieldEdits),
       };
     },
 
-    // Edit a field before submission (operator adjusting prefill)
+    // Edit a field before submission
     editTaskField({ taskId, operatorId, field, newValue }) {
       const task = getTaskOrThrow(taskId);
       if (task.assignedOperatorId !== operatorId) {
@@ -214,7 +228,7 @@ export function createPilotService({ products = [] } = {}) {
       return structuredClone(task);
     },
 
-    // Mark task as submitted by operator (human confirmed the form is ready)
+    // Mark task as submitted
     markSubmitted({ taskId, operatorId }) {
       const task = getTaskOrThrow(taskId);
       if (task.assignedOperatorId !== operatorId) {
@@ -238,7 +252,7 @@ export function createPilotService({ products = [] } = {}) {
       return structuredClone(task);
     },
 
-    // Supervisor confirms a submission (ad was posted successfully)
+    // Confirm a submission
     confirmTask({ taskId, supervisorId }) {
       const task = getTaskOrThrow(taskId);
       if (task.status !== TASK_STATUS.SUBMITTED) {
@@ -259,7 +273,7 @@ export function createPilotService({ products = [] } = {}) {
       return structuredClone(task);
     },
 
-    // Supervisor rejects a submission (something was wrong)
+    // Reject a submission
     rejectTask({ taskId, supervisorId, reason }) {
       const task = getTaskOrThrow(taskId);
       if (task.status !== TASK_STATUS.SUBMITTED) {
@@ -280,7 +294,7 @@ export function createPilotService({ products = [] } = {}) {
       return structuredClone(task);
     },
 
-    // Reassign a task to a different operator
+    // Reassign a task
     reassignTask({ taskId, newOperatorId, supervisorId }) {
       const task = getTaskOrThrow(taskId);
       if (task.status !== TASK_STATUS.ASSIGNED && task.status !== TASK_STATUS.PREFILL_READY) {
@@ -303,22 +317,23 @@ export function createPilotService({ products = [] } = {}) {
       return structuredClone(task);
     },
 
-    // Get all tasks (with optional filters)
-    listTasks({ status, operatorId } = {}) {
+    // List tasks with optional filters
+    listTasks({ status, operatorId, category } = {}) {
       let result = tasks;
       if (status) result = result.filter(t => t.status === status);
       if (operatorId) result = result.filter(t => t.assignedOperatorId === operatorId);
+      if (category) result = result.filter(t => t.category === category);
       return structuredClone(result);
     },
 
-    // Get audit logs for a task
+    // Get audit logs
     getAuditLog({ taskId } = {}) {
       let result = auditLogs;
       if (taskId) result = result.filter(e => e.taskId === taskId);
       return structuredClone(result);
     },
 
-    // Dashboard statistics
+    // Basic stats
     getStats() {
       const byStatus = {};
       for (const s of STATUS_ORDER) byStatus[s] = 0;
@@ -346,56 +361,27 @@ export function createPilotService({ products = [] } = {}) {
       };
     },
 
-    // Get active mapping info
-    getMapping() {
-      return structuredClone(activeMobilePhoneMapping);
-    },
+    // Enhanced stats with category breakdown
+    getStatsV2() {
+      const base = this.getStats();
 
-    // Get a product by ID
-    getProduct(productId) {
-      const product = productsById.get(productId);
-      return product ? structuredClone(product) : null;
-    },
-
-    // List all products
-    listProducts() {
-      return Array.from(productsById.values()).map(p => structuredClone(p));
-    },
-
-    // ── Phase 2: Batch create tasks from all products ──────────────
-    batchCreateTasks({ createdBy }) {
-      const results = [];
-      for (const product of productsById.values()) {
-        if (product.category !== activeMobilePhoneMapping.targetCategory) continue;
-        // Skip if task already exists for this product
-        const existing = tasks.find(t => t.productId === product.id);
-        if (existing) continue;
-        const result = this.createTask({ productId: product.id, createdBy });
-        results.push(result);
-      }
-      return results;
-    },
-
-    // ── Phase 2: Smart assign — pick operator with fewest active tasks ─
-    smartAssign({ operators }) {
-      if (!operators || operators.length === 0) throw new Error('اپراتوری برای تخصیص مشخص نشده.');
-
-      // Find operator with fewest active (assigned/prefill_ready) tasks
-      let bestOperator = null;
-      let bestCount = Infinity;
-      for (const op of operators) {
-        const count = countActiveTasks(op.id);
-        if (count < bestCount) {
-          bestCount = count;
-          bestOperator = op;
-        }
+      // Per-category breakdown
+      const byCategory = {};
+      for (const t of tasks) {
+        const cat = t.category || 'unknown';
+        byCategory[cat] = (byCategory[cat] || 0) + 1;
       }
 
-      if (!bestOperator) return null;
-      return this.claimNextTask({ operatorId: bestOperator.id });
+      return {
+        ...base,
+        workload: this.getWorkload(),
+        queueDepth: tasks.filter(t => t.status === TASK_STATUS.READY_FOR_ASSIGNMENT).length,
+        needsReviewCount: tasks.filter(t => t.status === TASK_STATUS.NEEDS_REVIEW).length,
+        byCategory,
+      };
     },
 
-    // ── Phase 2: Get workload for all operators ────────────────────
+    // Get workload for all operators
     getWorkload() {
       const workload = {};
       for (const t of tasks) {
@@ -415,17 +401,63 @@ export function createPilotService({ products = [] } = {}) {
       return workload;
     },
 
-    // ── Phase 2: Enhanced stats ────────────────────────────────────
-    getStatsV2() {
-      const base = this.getStats();
-      return {
-        ...base,
-        workload: this.getWorkload(),
-        queueDepth: tasks.filter(t => t.status === TASK_STATUS.READY_FOR_ASSIGNMENT).length,
-        needsReviewCount: tasks.filter(t => t.status === TASK_STATUS.NEEDS_REVIEW).length,
-      };
+    // Get mapping info (backward compat — returns first active template)
+    getMapping() {
+      const templates = cats.getActiveTemplates();
+      return templates[0] || null;
+    },
+
+    // Get a product
+    getProduct(productId) {
+      const product = productsById.get(productId);
+      return product ? structuredClone(product) : null;
+    },
+
+    // List all products (optionally by category)
+    listProducts({ category } = {}) {
+      let result = Array.from(productsById.values());
+      if (category) result = result.filter(p => p.category === category);
+      return result.map(p => structuredClone(p));
+    },
+
+    // Batch create tasks from all products (all categories)
+    batchCreateTasks({ createdBy, category } = {}) {
+      const results = [];
+      for (const product of productsById.values()) {
+        if (category && product.category !== category) continue;
+        // Skip if no mapping exists
+        const mapping = cats.getTemplateForProduct(product.category);
+        if (!mapping) continue;
+        // Skip if task already exists for this product
+        const existing = tasks.find(t => t.productId === product.id);
+        if (existing) continue;
+        const result = this.createTask({ productId: product.id, createdBy });
+        results.push(result);
+      }
+      return results;
+    },
+
+    // Smart assign — pick operator with fewest active tasks
+    smartAssign({ operators }) {
+      if (!operators || operators.length === 0) throw new Error('اپراتوری برای تخصیص مشخص نشده.');
+
+      let bestOperator = null;
+      let bestCount = Infinity;
+      for (const op of operators) {
+        const count = countActiveTasks(op.id);
+        if (count < bestCount) {
+          bestCount = count;
+          bestOperator = op;
+        }
+      }
+
+      if (!bestOperator) return null;
+      return this.claimNextTask({ operatorId: bestOperator.id });
+    },
+
+    // Get total task count
+    getTaskCount() {
+      return tasks.length;
     },
   };
 }
-
-export const PILOT_MAPPING = activeMobilePhoneMapping;
