@@ -115,7 +115,7 @@
     // Find the label element near the select
     const allEls = [...document.querySelectorAll('*')];
     const labelEl = allEls.find(el => {
-      const t = (el.textContent || '').trim();
+      const t = (el.textContent || '').trim().replace(/[*\u060A]/g, '').trim();
       return t === labelText && el.offsetParent && el.children.length === 0;
     });
     if (!labelEl) { warn('label not found:', labelText); return false; }
