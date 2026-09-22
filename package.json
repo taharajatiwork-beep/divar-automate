@@ -5,6 +5,17 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
+    "dev": "vite",
+    "build": "vite build",
     "test": "node --test"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.1.1",
+    "lucide-react": "^1.47.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.3.0"
   }
 }
