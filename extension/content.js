@@ -116,7 +116,7 @@
     // Strategy 1: find button by name attribute
     let trigger = document.querySelector('button[name="' + name + '"]');
 
-    // Strategy 2: for brand_and_model — find kt-action-field with label text
+    // Strategy 2: for brand_model — find kt-action-field with label text
     if (!trigger && labelText) {
       const btns = [...document.querySelectorAll('button.kt-action-field, button.kt-select-field')]
         .filter(b => b.offsetParent);
@@ -157,8 +157,11 @@
       if (!row.offsetParent) continue;
       const text = (row.textContent || '').trim();
       if (text.includes(optionText) || optionText.includes(text)) {
+        // Full mouse event sequence for React
+        row.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true}));
+        row.dispatchEvent(new PointerEvent('pointerup', {bubbles:true}));
         row.click();
-        log('\u2705 select:', labelText, '=', text.substring(0, 30));
+        log('✅ select:', labelText, '=', text.substring(0, 30));
         clicked = true;
         break;
       }
@@ -170,6 +173,8 @@
       for (const d of divs) {
         const t = (d.textContent || '').trim();
         if (t === optionText && d.offsetParent) {
+          d.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true}));
+          d.dispatchEvent(new PointerEvent('pointerup', {bubbles:true}));
           d.click();
           log('\u2705 select (broad):', labelText, '=', t);
           clicked = true;
@@ -237,7 +242,7 @@
     // 4. Select dropdowns (car-specific) — match by name attribute
     const selects = [
       { name: 'fuel_type', value: pf.fuel || 'بنزین' },
-      { name: 'mileage',   value: pf.mileage },
+      
       { name: 'year',      value: pf.year },
       { name: 'color',     value: pf.color },
       { name: 'body_status', value: 'سالم و بی‌خط و خش' },
@@ -248,7 +253,7 @@
     const brandVal = pf.brand && pf.model ? pf.brand + ' ' + pf.model : pf.brand;
     if (brandVal && !filledKeys.has('brand')) {
       try {
-        const ok = await clickDivarDropdownByName('brand_and_model', String(brandVal), 'برند و مدل');
+        const ok = await clickDivarDropdownByName('brand_model', String(brandVal), 'برند و مدل');
         if (ok) { filledKeys.add('brand'); filled++; }
       } catch (e) { warn('brand select error:', e.message); }
     }
@@ -383,12 +388,17 @@
     if (!selectFound) { warn('car fields did not load after بعدی'); return; }
     log('car fields loaded!');
 
+        // 4b. Fill usage (mileage) — it is a text INPUT, not a select
+    const usageEl = document.querySelector("input[name=\"usage\"]");
+    if (usageEl && pf.mileage && setTextValue(usageEl, String(pf.mileage))) {
+      selectFilled++; log("✅", "usage =", pf.mileage);
+    }
+
     // 5. Fill select dropdowns (Page 2)
     await new Promise(r => setTimeout(r, 1000)); // extra settle time
 
     const selects = [
       { name: 'fuel_type',   value: pf.fuel || 'بنزین' },
-      { name: 'mileage',     value: pf.mileage },
       { name: 'year',        value: pf.year },
       { name: 'color',       value: pf.color },
       { name: 'body_status', value: 'سالم و بی‌خط و خش' },
@@ -408,7 +418,7 @@
     const brandVal = pf.brand && pf.model ? pf.brand + ' ' + pf.model : pf.brand;
     if (brandVal) {
       try {
-        const ok = await clickDivarDropdownByName('brand_and_model', String(brandVal), 'برند و مدل');
+        const ok = await clickDivarDropdownByName('brand_model', String(brandVal), 'برند و مدل');
         if (ok) { selectFilled++; log('✅', 'brand =', brandVal); }
       } catch (e) { warn('brand error:', e.message); }
     }
