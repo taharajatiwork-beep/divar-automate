@@ -1,231 +1,222 @@
 [
   {
     "id": "P001",
-    "title": "گوشی سامسونگ Galaxy A55 5G",
-    "description": "دستگاه کاملاً سالم با جعبه و لوازم جانبی اصلی. رنگ: آبی.",
-    "price": 22500000,
-    "category": "mobile-phones",
+    "title": "پژو ۲۰۶ تیپ ۵",
+    "description": "خودروی سالم و بدون تصادف. موتور و گیربکس سالم. بیمه شخص ثالث تا پایان سال. لاستیک‌ها نو.",
+    "price": 280000000,
+    "category": "vehicles",
     "attributes": {
-      "brand": "Samsung",
-      "model": "Galaxy A55 5G",
-      "storage": "256GB",
-      "color": "آبی"
+      "brand": "پژو",
+      "model": "۲۰۶ تیپ ۵",
+      "year": "۱۳۹۸",
+      "mileage": "۸۵,۰۰۰ کیلومتر",
+      "color": "سفید",
+      "gearbox": "دنده دستی"
     },
     "images": [
-      "/images/P001_01.jpg",
-      "/images/P001_02.jpg"
+      "/images/P001_01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T11:40:49.415Z",
-    "updatedAt": "2026-09-22T11:40:49.415Z",
+    "createdAt": "2026-09-22T11:53:41.526Z",
+    "updatedAt": "2026-09-22T11:53:41.526Z",
     "status": "active"
   },
   {
     "id": "P002",
-    "title": "گوشی شیائومی Redmi Note 13",
-    "description": "موبایل کارکرده و تمیز. شارژر اصلی موجود.",
-    "price": 10500000,
-    "category": "mobile-phones",
+    "title": "پژو ۲۰۷ اتوماتیک",
+    "description": "خودرو کارکرده و تمیز. صندلی چرمی. مانیتور و دوربین عقب. بدون رنگ و تصادف.",
+    "price": 450000000,
+    "category": "vehicles",
     "attributes": {
-      "brand": "Xiaomi",
-      "model": "Redmi Note 13",
-      "storage": "128GB",
-      "color": "مشکی"
+      "brand": "پژو",
+      "model": "۲۰۷ اتوماتیک",
+      "year": "۱۴۰۱",
+      "mileage": "۴۲,۰۰۰ کیلومتر",
+      "color": "مشکی",
+      "gearbox": "اتوماتیک"
     },
     "images": [
       "/images/P002_01.jpg"
     ],
-    "city": "تهران",
-    "createdAt": "2026-09-22T11:40:49.415Z",
-    "updatedAt": "2026-09-22T11:40:49.415Z",
-    "status": "locked",
-    "locked_by": "op-ali",
-    "locked_at": "2026-09-22T11:41:41.048Z"
+    "city": "اصفهان",
+    "createdAt": "2026-09-22T11:53:41.526Z",
+    "updatedAt": "2026-09-22T11:53:41.526Z",
+    "status": "active"
   },
   {
     "id": "P003",
-    "title": "گوشی اپل iPhone 15 Pro",
-    "description": "آیفون ۱۵ پرو ۲۵۶ گیگ. خاکستری تیتانیوم. فعال تا ۱۴۰۰.",
-    "price": 72000000,
-    "category": "mobile-phones",
+    "title": "سمند EF7",
+    "description": "خودروی اقتصادی و کم‌مصرف. موتور EF7 سالم. رنگ فابریکی. یک مالک.",
+    "price": 220000000,
+    "category": "vehicles",
     "attributes": {
-      "brand": "Apple",
-      "model": "iPhone 15 Pro",
-      "storage": "256GB",
-      "color": "خاکستری"
+      "brand": "ایران خودرو",
+      "model": "سمند EF7",
+      "year": "۱۳۹۷",
+      "mileage": "۱۱۰,۰۰۰ کیلومتر",
+      "color": "نقره‌ای",
+      "gearbox": "دنده دستی"
     },
     "images": [
-      "/images/P003_01.jpg",
-      "/images/P003_02.jpg"
+      "/images/P003_01.jpg"
     ],
-    "city": "اصفهان",
-    "createdAt": "2026-09-22T11:40:49.415Z",
-    "updatedAt": "2026-09-22T11:40:49.415Z",
+    "city": "تهران",
+    "createdAt": "2026-09-22T11:53:41.526Z",
+    "updatedAt": "2026-09-22T11:53:41.526Z",
     "status": "active"
   },
   {
     "id": "P004",
-    "title": "گوشی سامسونگ Galaxy S24 Ultra",
-    "description": "گلکسی S24 اولترا. نو. با گارانتی سامسونگ.",
-    "price": 85000000,
-    "category": "mobile-phones",
+    "title": "تیبا ۲",
+    "description": "خودرو سالم و تمیز. مناسب شهری. مصرف سوخت پایین. بیمه و معاینه فنی به‌روز.",
+    "price": 180000000,
+    "category": "vehicles",
     "attributes": {
-      "brand": "Samsung",
-      "model": "Galaxy S24 Ultra",
-      "storage": "512GB",
-      "color": "بنفش"
+      "brand": "سایپا",
+      "model": "تیبا ۲",
+      "year": "۱۳۹۹",
+      "mileage": "۶۵,۰۰۰ کیلومتر",
+      "color": "قرمز",
+      "gearbox": "دنده دستی"
     },
     "images": [
       "/images/P004_01.jpg"
     ],
-    "city": "تهران",
-    "createdAt": "2026-09-22T11:40:49.415Z",
-    "updatedAt": "2026-09-22T11:40:49.415Z",
+    "city": "شیراز",
+    "createdAt": "2026-09-22T11:53:41.526Z",
+    "updatedAt": "2026-09-22T11:53:41.526Z",
     "status": "active"
   },
   {
     "id": "P005",
-    "title": "گوشی پوکو X6 Pro",
-    "description": "پوکو X6 پرو. سالم. با محافظ صفحه.",
-    "price": 14000000,
-    "category": "mobile-phones",
+    "title": "کیام سراتو",
+    "description": "خودرو کره‌ای با کیفیت بالا. موتور قدرتمند و گیربکس اتوماتیک روان. صندلی‌های چرمی.",
+    "price": 520000000,
+    "category": "vehicles",
     "attributes": {
-      "brand": "POCO",
-      "model": "X6 Pro",
-      "storage": "256GB",
-      "color": "سرمه‌ای"
+      "brand": "کیا",
+      "model": "سراتو",
+      "year": "۱۳۹۶",
+      "mileage": "۹۵,۰۰۰ کیلومتر",
+      "color": "خاکستری",
+      "gearbox": "اتوماتیک"
     },
-    "images": [],
-    "city": "شیراز",
-    "createdAt": "2026-09-22T11:40:49.415Z",
-    "updatedAt": "2026-09-22T11:40:49.415Z",
+    "images": [
+      "/images/P005_01.jpg"
+    ],
+    "city": "تهران",
+    "createdAt": "2026-09-22T11:53:41.526Z",
+    "updatedAt": "2026-09-22T11:53:41.526Z",
     "status": "active"
   },
   {
     "id": "P006",
-    "title": "لپ‌تاپ ایسوس ZenBook 14 OLED",
-    "description": "لپ‌تاپ نو با گارانتی رسمی. صفحه OLED عالی.",
-    "price": 48000000,
-    "category": "laptops",
+    "title": "تویوتا کمری",
+    "description": "خودرو لاکچری وارداتی. موتور ۲.۵ لیتری. سیستم ایمنی کامل. وضعیت فنی عالی.",
+    "price": 1200000000,
+    "category": "vehicles",
     "attributes": {
-      "brand": "ASUS",
-      "model": "ZenBook 14 UX3405",
-      "cpu": "Intel Core Ultra 7 155H",
-      "ram": "16GB",
-      "storage": "512GB SSD",
-      "gpu": "Intel Arc iGPU",
-      "display": "14\" OLED 2.8K"
+      "brand": "تویوتا",
+      "model": "کمری",
+      "year": "۱۴۰۰",
+      "mileage": "۳۰,۰۰۰ کیلومتر",
+      "color": "سفید",
+      "gearbox": "اتوماتیک"
     },
     "images": [
       "/images/P006_01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T11:40:49.415Z",
-    "updatedAt": "2026-09-22T11:40:49.415Z",
+    "createdAt": "2026-09-22T11:53:41.526Z",
+    "updatedAt": "2026-09-22T11:53:41.526Z",
     "status": "active"
   },
   {
     "id": "P007",
-    "title": "لپ‌تاپ اپل MacBook Air M3 15\"",
-    "description": "مک‌بوک ایر M3. ۱۵ اینچ. فوق‌العاده سبک.",
-    "price": 65000000,
-    "category": "laptops",
+    "title": "هیوندای النترا",
+    "description": "خودرو وارداتی سالم و بدون تصادف. فرمان برقی. مانیتور. دوربین ۳۶۰ درجه.",
+    "price": 850000000,
+    "category": "vehicles",
     "attributes": {
-      "brand": "Apple",
-      "model": "MacBook Air 15\" M3",
-      "cpu": "Apple M3",
-      "ram": "16GB",
-      "storage": "512GB SSD",
-      "gpu": "10-core GPU",
-      "display": "15.3\" Liquid Retina"
+      "brand": "هیوندای",
+      "model": "النترا",
+      "year": "۱۳۹۸",
+      "mileage": "۵۸,۰۰۰ کیلومتر",
+      "color": "آبی تیره",
+      "gearbox": "اتوماتیک"
     },
     "images": [
-      "/images/P007_01.jpg",
-      "/images/P007_02.jpg"
+      "/images/P007_01.jpg"
     ],
-    "city": "تهران",
-    "createdAt": "2026-09-22T11:40:49.415Z",
-    "updatedAt": "2026-09-22T11:40:49.415Z",
+    "city": "تبریز",
+    "createdAt": "2026-09-22T11:53:41.526Z",
+    "updatedAt": "2026-09-22T11:53:41.526Z",
     "status": "active"
   },
   {
     "id": "P008",
-    "title": "لپ‌تاپ لنوو Legion Pro 5",
-    "description": "لپ‌تاپ گیمینگ. RTX 4070. مناسب بازی و رندر.",
-    "price": 78000000,
-    "category": "laptops",
+    "title": "پراید ۱۳۲",
+    "description": "خودرو اقتصادی سالم. موتور و گیربکس بی‌نقص. مناسب استفاده شهری. مصرف سوخت پایین.",
+    "price": 120000000,
+    "category": "vehicles",
     "attributes": {
-      "brand": "Lenovo",
-      "model": "Legion Pro 5 16IRX9",
-      "cpu": "Intel Core i9-14900HX",
-      "ram": "32GB",
-      "storage": "1TB SSD",
-      "gpu": "RTX 4070 8GB",
-      "display": "16\" IPS 240Hz"
+      "brand": "سایپا",
+      "model": "پراید ۱۳۲",
+      "year": "۱۳۹۵",
+      "mileage": "۱۵۰,۰۰۰ کیلومتر",
+      "color": "سفید",
+      "gearbox": "دنده دستی"
     },
     "images": [
       "/images/P008_01.jpg"
     ],
-    "city": "تبریز",
-    "createdAt": "2026-09-22T11:40:49.415Z",
-    "updatedAt": "2026-09-22T11:40:49.415Z",
+    "city": "کرمان",
+    "createdAt": "2026-09-22T11:53:41.526Z",
+    "updatedAt": "2026-09-22T11:53:41.526Z",
     "status": "active"
   },
   {
     "id": "P009",
-    "title": "هدفون سامسونگ Galaxy Buds2 Pro",
-    "description": "هدفون بی‌سیم اصل. نویزگیر فعال. وضعیت: نو.",
-    "price": 3800000,
-    "category": "accessories",
+    "title": "رانا",
+    "description": "خودرو ملی ایران خودرو. موتور TU5. وضعیت فنی خوب. بدون رنگ شدگی.",
+    "price": 250000000,
+    "category": "vehicles",
     "attributes": {
-      "brand": "Samsung",
-      "type": "هدفون بی‌سیم",
-      "color": "سفید"
+      "brand": "ایران خودرو",
+      "model": "رانا",
+      "year": "۱۴۰۰",
+      "mileage": "۳۸,۰۰۰ کیلومتر",
+      "color": "سرمه‌ای",
+      "gearbox": "دنده دستی"
     },
     "images": [
       "/images/P009_01.jpg"
     ],
-    "city": "تهران",
-    "createdAt": "2026-09-22T11:40:49.415Z",
-    "updatedAt": "2026-09-22T11:40:49.415Z",
+    "city": "اصفهان",
+    "createdAt": "2026-09-22T11:53:41.526Z",
+    "updatedAt": "2026-09-22T11:53:41.526Z",
     "status": "active"
   },
   {
     "id": "P010",
-    "title": "قاب محافظ آیفون 15 Pro Max",
-    "description": "قاب سیلیکونی اصلی اپل. رنگ: نیمه‌شفاف.",
-    "price": 950000,
-    "category": "accessories",
+    "title": "دنا پلاس",
+    "description": "خودرو جدید ایران خودرو. موتور EF7 توربو. فرمان برقی. مانیتور. دوربین عقب.",
+    "price": 380000000,
+    "category": "vehicles",
     "attributes": {
-      "brand": "Apple",
-      "type": "قاب محافظ",
-      "color": "نیمه‌شفاف"
+      "brand": "ایران خودرو",
+      "model": "دنا پلاس",
+      "year": "۱۴۰۲",
+      "mileage": "۱۲,۰۰۰ کیلومتر",
+      "color": "مشکی",
+      "gearbox": "دنده دستی"
     },
     "images": [
       "/images/P010_01.jpg"
     ],
     "city": "تهران",
-    "createdAt": "2026-09-22T11:40:49.415Z",
-    "updatedAt": "2026-09-22T11:40:49.415Z",
-    "status": "active"
-  },
-  {
-    "id": "P011",
-    "title": "شارژر بی‌سیم سامسونگ 15W",
-    "description": "شارژر وایرلس اصلی سامسونگ. با کابل.",
-    "price": 1200000,
-    "category": "accessories",
-    "attributes": {
-      "brand": "Samsung",
-      "type": "شارژر بی‌سیم",
-      "power": "15W"
-    },
-    "images": [
-      "/images/P011_01.jpg"
-    ],
-    "city": "کرمان",
-    "createdAt": "2026-09-22T11:40:49.415Z",
-    "updatedAt": "2026-09-22T11:40:49.415Z",
+    "createdAt": "2026-09-22T11:53:41.526Z",
+    "updatedAt": "2026-09-22T11:53:41.526Z",
     "status": "active"
   }
 ]

@@ -64,6 +64,28 @@ const builtInTemplates = [
       { target: 'images',             source: 'images',             label: 'تصاویر',    required: true  },
     ],
   },
+  {
+    id: 'vehicles',
+    label: 'خودرو',
+    icon: '🚗',
+    version: 1,
+    status: 'active',
+    lastReviewedAt: null,
+    lastReviewedBy: null,
+    reviewNotes: null,
+    fields: [
+      { target: 'title',                source: 'title',                label: 'عنوان',       required: true  },
+      { target: 'description',          source: 'description',          label: 'توضیحات',     required: true  },
+      { target: 'price',                source: 'price',                label: 'قیمت',        required: true  },
+      { target: 'attributes.brand',     source: 'attributes.brand',     label: 'برند',        required: true  },
+      { target: 'attributes.model',     source: 'attributes.model',     label: 'مدل',         required: true  },
+      { target: 'attributes.year',      source: 'attributes.year',      label: 'سال ساخت',    required: true  },
+      { target: 'attributes.mileage',   source: 'attributes.mileage',   label: 'کارکرد',      required: true  },
+      { target: 'attributes.color',     source: 'attributes.color',     label: 'رنگ',         required: false },
+      { target: 'attributes.gearbox',   source: 'attributes.gearbox',   label: 'گیربکس',     required: false },
+      { target: 'images',               source: 'images',               label: 'تصاویر',      required: true  },
+    ],
+  },
 ];
 
 export function createCategoryService() {

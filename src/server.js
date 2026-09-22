@@ -159,7 +159,7 @@ const server = createServer(async (req, res) => {
       if (p.status !== 'locked' || p.locked_by !== user.id) {
         return sendJson(res, 403, { error: 'این محصول قفل نیست یا قفل شما نیست.' });
       }
-      return sendJson(res, 200, { prefill: { title: p.title, description: p.description, price: p.price, attributes: p.attributes, category: p.category, city: p.city, images: (p.images || []).map(u => u.replace('https://cdn.example.test', 'http://localhost:3000')) } });
+      return sendJson(res, 200, { prefill: { title: p.title, description: p.description, price: p.price, ...p.attributes, category: p.category, city: p.city, images: (p.images || []).map(u => u.replace('https://cdn.example.test', 'http://localhost:3000')) } });
     }
 
     // ── Pending prefill (web panel stores, extension reads) ──────

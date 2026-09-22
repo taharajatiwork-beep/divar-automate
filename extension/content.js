@@ -35,13 +35,16 @@
   // FIELD DETECTION — by name/placeholder/label
   // ══════════════════════════════════════════════════════════════════
   const FIELD_MAP = {
-    title:       { names: ['Title', 'title'],       labels: ['عنواین آگهی', 'عنواین'], placeholder: ['عنواین', 'title'] },
-    description: { names: ['Description', 'description'], labels: ['توضیحات آگهی', 'توضیحات'], placeholder: ['توضیح', 'description'] },
-    price:       { names: ['Price', 'price'],       labels: ['قیمت', 'مبلغ'], placeholder: ['قیمت', 'price'] },
-    brand:       { names: ['Brand', 'brand'],       labels: ['برند'], placeholder: ['برند'] },
-    model:       { names: ['Model', 'model'],       labels: ['مدل'], placeholder: ['مدل'] },
-    color:       { names: ['Color', 'color'],       labels: ['رنگ'], placeholder: ['رنگ'] },
-    storage:     { names: ['Storage', 'storage'],   labels: ['حافظه', 'ظرفیت'], placeholder: ['حافظه'] },
+    title:       { names: ['Title', 'title'],       labels: ['عنوان'], ph: ['عنوان'] },
+    description: { names: ['Description', 'description'], labels: ['توضیحات'], ph: ['توضیح'] },
+    price:       { names: ['Price', 'price'],       labels: ['قیمت'], ph: ['قیمت', 'تومان'] },
+    brand:       { names: ['Brand', 'brand'],       labels: ['برند'], ph: ['برند'] },
+    model:       { names: ['Model', 'model'],       labels: ['مدل'], ph: ['مدل'] },
+    color:       { names: ['Color', 'color'],       labels: ['رنگ'], ph: ['رنگ'] },
+    year:        { names: ['Year', 'year'],         labels: ['سال'], ph: ['سال'] },
+    mileage:     { names: ['Mileage', 'mileage'],   labels: ['کیلومتر', 'کارکرد'], ph: ['کیلومتر'] },
+    gearbox:     { names: ['Gearbox', 'gearbox'],   labels: ['گیربکس', 'دنده'], ph: ['گیربکس', 'دنده'] },
+    storage:     { names: ['Storage', 'storage'],   labels: ['حافظه'], ph: ['حافظه'] },
   };
 
   function findFieldByConfig(config) {

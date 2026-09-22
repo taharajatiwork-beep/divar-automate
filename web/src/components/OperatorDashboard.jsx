@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
-const CAT_ICONS = { 'mobile-phones': '📱', 'laptops': '💻', 'accessories': '🎧' };
-const CAT_LABELS = { 'mobile-phones': 'موبایل', 'laptops': 'لپ‌تاپ', 'accessories': 'لوازم' };
+const CAT_ICONS = { 'vehicles': '🚗' };
+const CAT_LABELS = { 'vehicles': 'خودرو' };
 const LOCK_MS = 30 * 60 * 1000;
 function fmtPrice(p) { return p ? new Intl.NumberFormat('fa-IR').format(p) + ' تومان' : '—'; }
 function lockCD(a) { if (!a) return ''; const r = Math.max(0, LOCK_MS - (Date.now() - new Date(a).getTime())); const m = Math.floor(r/60000), s = Math.floor((r%60000)/1000); return r<=0 ? '⏰ منقضی' : m>0 ? m+':'+String(s).padStart(2,'0') : s+' ث'; }
