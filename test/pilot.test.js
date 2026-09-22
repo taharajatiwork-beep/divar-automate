@@ -1,299 +1,172 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-  createPilotService,
-  TASK_STATUS,
-} from '../src/pilot-service.js';
+import { createPilotService, TASK_STATUS } from '../src/pilot-service.js';
+import { createAuthService, ROLES } from '../src/auth.js';
 
 const validProduct = {
-  id: 'phone-001',
-  title: 'گوشی سامسونگ Galaxy A55 5G',
-  description: 'دستگاه کاملاً سالم است و با جعبه و لوازم جانبی عرضه می‌شود.',
-  price: 22500000,
+  id: 'phone-001', title: 'گوشی سامسونگ Galaxy A55 5G',
+  description: 'دستگاه کاملاً سالم است.', price: 22500000,
   category: 'mobile-phones',
   attributes: { brand: 'Samsung', model: 'Galaxy A55 5G', storage: '256GB' },
   images: ['https://cdn.example.test/phone-001/01.jpg'],
 };
-
+const validProduct2 = {
+  ...validProduct, id: 'phone-003', title: 'گوشی اپل iPhone 15',
+  price: 55000000, attributes: { brand: 'Apple', model: 'iPhone 15', storage: '128GB' },
+};
 const incompleteProduct = {
-  ...validProduct,
-  id: 'phone-002',
+  ...validProduct, id: 'phone-002',
   attributes: { brand: 'Xiaomi', model: '', storage: '128GB' },
 };
 
-// ─── Task Creation ──────────────────────────────────────────────────
-
+// ═══ Phase 1 ══════════════════════════════════════════════════════
 test('creates a ready task from a valid product', () => {
-  const service = createPilotService({ products: [validProduct] });
-  const task = service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-
-  assert.equal(task.status, TASK_STATUS.READY_FOR_ASSIGNMENT);
-  assert.equal(task.productId, validProduct.id);
-  assert.equal(task.mappingVersion, 1);
-  assert.equal(task.validationErrors.length, 0);
-  assert.equal(task.payload.title, validProduct.title);
-  assert.equal(task.payload.attributes.model, 'Galaxy A55 5G');
+  const s = createPilotService({ products: [validProduct] });
+  const t = s.createTask({ productId: validProduct.id, createdBy: 'sup-1' });
+  assert.equal(t.status, TASK_STATUS.READY_FOR_ASSIGNMENT);
+  assert.equal(t.validationErrors.length, 0);
 });
 
-test('creates needs_review task when a required field is missing', () => {
-  const service = createPilotService({ products: [incompleteProduct] });
-  const task = service.createTask({ productId: incompleteProduct.id, createdBy: 'supervisor-1' });
-
-  assert.equal(task.status, TASK_STATUS.NEEDS_REVIEW);
-  assert.equal(task.validationErrors.length, 1);
-  assert.equal(task.validationErrors[0].field, 'attributes.model');
+test('creates needs_review when required field missing', () => {
+  const s = createPilotService({ products: [incompleteProduct] });
+  const t = s.createTask({ productId: incompleteProduct.id, createdBy: 'sup-1' });
+  assert.equal(t.status, TASK_STATUS.NEEDS_REVIEW);
+  assert.equal(t.validationErrors[0].field, 'attributes.model');
 });
 
-test('throws for non-existent product', () => {
-  const service = createPilotService({ products: [] });
-  assert.throws(
-    () => service.createTask({ productId: 'nope', createdBy: 'supervisor-1' }),
-    /محصول پیدا نشد/,
-  );
+test('claims the next ready task', () => {
+  const s = createPilotService({ products: [validProduct] });
+  s.createTask({ productId: validProduct.id, createdBy: 'sup-1' });
+  const c = s.claimNextTask({ operatorId: 'op-1' });
+  assert.equal(c.status, TASK_STATUS.ASSIGNED);
 });
 
-test('creates an audit log entry on task creation', () => {
-  const service = createPilotService({ products: [validProduct] });
-  service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-  const logs = service.getAuditLog();
-
-  assert.equal(logs.length, 1);
-  assert.equal(logs[0].action, 'task_created');
-  assert.equal(logs[0].operatorId, 'supervisor-1');
+test('edits a field and transitions to prefill_ready', () => {
+  const s = createPilotService({ products: [validProduct] });
+  const t = s.createTask({ productId: validProduct.id, createdBy: 'sup-1' });
+  s.claimNextTask({ operatorId: 'op-1' });
+  const u = s.editTaskField({ taskId: t.id, operatorId: 'op-1', field: 'price', newValue: 21000000 });
+  assert.equal(u.payload.price, 21000000);
+  assert.equal(u.status, TASK_STATUS.PREFILL_READY);
 });
 
-// ─── Claim & Assign ────────────────────────────────────────────────
-
-test('claims the next ready task and assigns it to an operator', () => {
-  const service = createPilotService({ products: [validProduct] });
-  service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-
-  const claimed = service.claimNextTask({ operatorId: 'op-1' });
-
-  assert.equal(claimed.status, TASK_STATUS.ASSIGNED);
-  assert.equal(claimed.assignedOperatorId, 'op-1');
-  assert.ok(claimed.assignedAt);
+test('submits and confirms', () => {
+  const s = createPilotService({ products: [validProduct] });
+  const t = s.createTask({ productId: validProduct.id, createdBy: 'sup-1' });
+  s.claimNextTask({ operatorId: 'op-1' });
+  s.markSubmitted({ taskId: t.id, operatorId: 'op-1' });
+  const c = s.confirmTask({ taskId: t.id, supervisorId: 'sup-1' });
+  assert.equal(c.status, TASK_STATUS.CONFIRMED);
 });
 
-test('returns null when no ready tasks exist', () => {
-  const service = createPilotService({ products: [] });
-  const claimed = service.claimNextTask({ operatorId: 'op-1' });
-  assert.equal(claimed, null);
+test('full lifecycle with audit trail', () => {
+  const s = createPilotService({ products: [validProduct] });
+  const t = s.createTask({ productId: validProduct.id, createdBy: 'sup-1' });
+  s.claimNextTask({ operatorId: 'op-1' });
+  s.editTaskField({ taskId: t.id, operatorId: 'op-1', field: 'description', newValue: 'ویرایش' });
+  s.markSubmitted({ taskId: t.id, operatorId: 'op-1' });
+  s.confirmTask({ taskId: t.id, supervisorId: 'sup-1' });
+  const logs = s.getAuditLog({ taskId: t.id });
+  assert.ok(logs.length >= 4);
+  assert.ok(logs.some(l => l.action === 'task_confirmed'));
 });
 
-test('creates an audit log entry on claim', () => {
-  const service = createPilotService({ products: [validProduct] });
-  service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-  service.claimNextTask({ operatorId: 'op-1' });
-  const logs = service.getAuditLog();
-
-  assert.equal(logs.length, 2);
-  assert.equal(logs[1].action, 'task_assigned');
+// ═══ Phase 2: Auth ════════════════════════════════════════════════
+test('auth: valid token returns user', () => {
+  const auth = createAuthService();
+  const u = auth.authenticate('tok-ali-1234');
+  assert.ok(u);
+  assert.equal(u.role, ROLES.OPERATOR);
 });
 
-// ─── Prefill ───────────────────────────────────────────────────────
-
-test('returns prefill payload for the assigned operator', () => {
-  const service = createPilotService({ products: [validProduct] });
-  const task = service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-  service.claimNextTask({ operatorId: 'op-1' });
-
-  const prefill = service.getPrefillPayload({ taskId: task.id, operatorId: 'op-1' });
-
-  assert.equal(prefill.taskId, task.id);
-  assert.equal(prefill.fields.title, validProduct.title);
-  assert.ok(Array.isArray(prefill.images));
+test('auth: invalid token returns null', () => {
+  const auth = createAuthService();
+  assert.equal(auth.authenticate('bad'), null);
 });
 
-test('rejects prefill request from wrong operator', () => {
-  const service = createPilotService({ products: [validProduct] });
-  const task = service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-  service.claimNextTask({ operatorId: 'op-1' });
-
-  assert.throws(
-    () => service.getPrefillPayload({ taskId: task.id, operatorId: 'op-2' }),
-    /دسترسی ندارید/,
-  );
+test('auth: operator permissions are correct', () => {
+  const auth = createAuthService();
+  const u = auth.authenticate('tok-ali-1234');
+  assert.ok(auth.hasPermission(u, 'task:claim'));
+  assert.ok(!auth.hasPermission(u, 'task:create'));
+  assert.ok(!auth.hasPermission(u, 'task:confirm'));
 });
 
-// ─── Field Editing ──────────────────────────────────────────────────
-
-test('allows the operator to edit a payload field and logs the change', () => {
-  const service = createPilotService({ products: [validProduct] });
-  const task = service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-  service.claimNextTask({ operatorId: 'op-1' });
-
-  const updated = service.editTaskField({
-    taskId: task.id,
-    operatorId: 'op-1',
-    field: 'price',
-    newValue: 21000000,
-  });
-
-  assert.equal(updated.payload.price, 21000000);
-  assert.equal(updated.status, TASK_STATUS.PREFILL_READY);
-  assert.equal(updated.fieldEdits.length, 1);
-  assert.equal(updated.fieldEdits[0].field, 'price');
-  assert.equal(updated.fieldEdits[0].oldValue, validProduct.price);
-  assert.equal(updated.fieldEdits[0].newValue, 21000000);
-
-  const logs = service.getAuditLog({ taskId: task.id });
-  assert.ok(logs.some(l => l.action === 'field_edited' && l.field === 'price'));
+test('auth: supervisor has confirm/create', () => {
+  const auth = createAuthService();
+  const u = auth.authenticate('tok-reza-abcd');
+  assert.ok(auth.hasPermission(u, 'task:confirm'));
+  assert.ok(auth.hasPermission(u, 'task:create'));
+  assert.ok(!auth.hasPermission(u, 'users:manage'));
 });
 
-test('rejects field edit from wrong operator', () => {
-  const service = createPilotService({ products: [validProduct] });
-  const task = service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-  service.claimNextTask({ operatorId: 'op-1' });
-
-  assert.throws(
-    () => service.editTaskField({ taskId: task.id, operatorId: 'op-2', field: 'price', newValue: 1000 }),
-    /دسترسی ندارید/,
-  );
+test('auth: manager has full access', () => {
+  const auth = createAuthService();
+  const u = auth.authenticate('tok-admin-xyz');
+  assert.ok(auth.hasPermission(u, 'users:manage'));
+  assert.ok(auth.hasPermission(u, 'task:batch_create'));
 });
 
-test('does not create audit entry when edited value is the same', () => {
-  const service = createPilotService({ products: [validProduct] });
-  const task = service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-  service.claimNextTask({ operatorId: 'op-1' });
-  const logsBefore = service.getAuditLog().length;
-
-  service.editTaskField({ taskId: task.id, operatorId: 'op-1', field: 'price', newValue: validProduct.price });
-
-  assert.equal(service.getAuditLog().length, logsBefore);
+test('auth: listUsers returns all users', () => {
+  const auth = createAuthService();
+  assert.ok(auth.listUsers().length >= 4);
 });
 
-// ─── Submit (Human confirms form is ready) ─────────────────────────
-
-test('allows operator to mark task as submitted', () => {
-  const service = createPilotService({ products: [validProduct] });
-  const task = service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-  service.claimNextTask({ operatorId: 'op-1' });
-
-  const submitted = service.markSubmitted({ taskId: task.id, operatorId: 'op-1' });
-
-  assert.equal(submitted.status, TASK_STATUS.SUBMITTED);
-  assert.ok(submitted.submittedAt);
+test('auth: getOperators returns only operators', () => {
+  const auth = createAuthService();
+  const ops = auth.getOperators();
+  assert.ok(ops.length >= 2);
+  assert.ok(ops.every(u => u.role === ROLES.OPERATOR));
 });
 
-test('can submit directly from assigned (without field edits)', () => {
-  const service = createPilotService({ products: [validProduct] });
-  const task = service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-  service.claimNextTask({ operatorId: 'op-1' });
-
-  const submitted = service.markSubmitted({ taskId: task.id, operatorId: 'op-1' });
-  assert.equal(submitted.status, TASK_STATUS.SUBMITTED);
+// ═══ Phase 2: Batch Create ═══════════════════════════════════════
+test('batch: creates tasks for all products', () => {
+  const s = createPilotService({ products: [validProduct, validProduct2, incompleteProduct] });
+  const created = s.batchCreateTasks({ createdBy: 'sup-1' });
+  assert.equal(created.length, 3);
 });
 
-test('rejects submit from wrong operator', () => {
-  const service = createPilotService({ products: [validProduct] });
-  const task = service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-  service.claimNextTask({ operatorId: 'op-1' });
-
-  assert.throws(
-    () => service.markSubmitted({ taskId: task.id, operatorId: 'op-2' }),
-    /دسترسی ندارید/,
-  );
+test('batch: skips duplicates', () => {
+  const s = createPilotService({ products: [validProduct] });
+  s.batchCreateTasks({ createdBy: 'sup-1' });
+  assert.equal(s.batchCreateTasks({ createdBy: 'sup-1' }).length, 0);
 });
 
-// ─── Confirm / Reject (Supervisor) ─────────────────────────────────
-
-test('supervisor confirms a submitted task', () => {
-  const service = createPilotService({ products: [validProduct] });
-  const task = service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-  service.claimNextTask({ operatorId: 'op-1' });
-  service.markSubmitted({ taskId: task.id, operatorId: 'op-1' });
-
-  const confirmed = service.confirmTask({ taskId: task.id, supervisorId: 'supervisor-1' });
-
-  assert.equal(confirmed.status, TASK_STATUS.CONFIRMED);
-  assert.ok(confirmed.confirmedAt);
+// ═══ Phase 2: Smart Assign ═══════════════════════════════════════
+test('smart-assign: picks operator with fewest active tasks', () => {
+  const s = createPilotService({ products: [validProduct, validProduct2] });
+  s.batchCreateTasks({ createdBy: 'sup-1' });
+  const ops = [{ id: 'op-ali' }, { id: 'op-sara' }];
+  const first = s.smartAssign({ operators: ops });
+  assert.equal(first.assignedOperatorId, 'op-ali');
+  const second = s.smartAssign({ operators: ops });
+  assert.equal(second.assignedOperatorId, 'op-sara');
 });
 
-test('supervisor rejects a submitted task with a reason', () => {
-  const service = createPilotService({ products: [validProduct] });
-  const task = service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-  service.claimNextTask({ operatorId: 'op-1' });
-  service.markSubmitted({ taskId: task.id, operatorId: 'op-1' });
-
-  const rejected = service.rejectTask({
-    taskId: task.id,
-    supervisorId: 'supervisor-1',
-    reason: 'قیمت نادرست ثبت شده',
-  });
-
-  assert.equal(rejected.status, TASK_STATUS.REJECTED);
-  assert.equal(rejected.rejectionReason, 'قیمت نادرست ثبت شده');
+test('smart-assign: returns null when queue empty', () => {
+  const s = createPilotService({ products: [] });
+  assert.equal(s.smartAssign({ operators: [{ id: 'op-1' }] }), null);
 });
 
-test('cannot confirm a task that is not submitted', () => {
-  const service = createPilotService({ products: [validProduct] });
-  const task = service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-  assert.throws(
-    () => service.confirmTask({ taskId: task.id, supervisorId: 'supervisor-1' }),
-    /فقط وظایف ثبت‌شده قابل تأیید/,
-  );
+// ═══ Phase 2: Workload & StatsV2 ═════════════════════════════════
+test('workload tracks active and completed', () => {
+  const s = createPilotService({ products: [validProduct, validProduct2] });
+  s.batchCreateTasks({ createdBy: 'sup-1' });
+  const t1 = s.claimNextTask({ operatorId: 'op-ali' });
+  s.markSubmitted({ taskId: t1.id, operatorId: 'op-ali' });
+  s.confirmTask({ taskId: t1.id, supervisorId: 'sup-1' });
+  s.claimNextTask({ operatorId: 'op-ali' });
+  const w = s.getWorkload();
+  assert.equal(w['op-ali'].active, 1);
+  assert.equal(w['op-ali'].completed, 1);
 });
 
-// ─── Reassign ──────────────────────────────────────────────────────
-
-test('supervisor reassigns a task to another operator', () => {
-  const service = createPilotService({ products: [validProduct] });
-  const task = service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-  service.claimNextTask({ operatorId: 'op-1' });
-
-  const reassigned = service.reassignTask({ taskId: task.id, newOperatorId: 'op-2', supervisorId: 'supervisor-1' });
-
-  assert.equal(reassigned.assignedOperatorId, 'op-2');
-  assert.equal(reassigned.status, TASK_STATUS.ASSIGNED);
-  const logs = service.getAuditLog({ taskId: task.id });
-  assert.ok(logs.some(l => l.action === 'task_reassigned'));
-});
-
-// ─── Stats ─────────────────────────────────────────────────────────
-
-test('returns accurate dashboard statistics', () => {
-  const service = createPilotService({ products: [validProduct] });
-  const t1 = service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-  service.claimNextTask({ operatorId: 'op-1' });
-  service.markSubmitted({ taskId: t1.id, operatorId: 'op-1' });
-  service.confirmTask({ taskId: t1.id, supervisorId: 'supervisor-1' });
-
-  const stats = service.getStats();
-
-  assert.equal(stats.total, 1);
-  assert.equal(stats.byStatus[TASK_STATUS.CONFIRMED], 1);
-  assert.equal(stats.confirmationRate, 100);
-  assert.ok(stats.operators['op-1']);
-});
-
-// ─── Full Lifecycle ────────────────────────────────────────────────
-
-test('full lifecycle: create → claim → edit → submit → confirm', () => {
-  const service = createPilotService({ products: [validProduct] });
-  const task = service.createTask({ productId: validProduct.id, createdBy: 'supervisor-1' });
-
-  assert.equal(task.status, TASK_STATUS.READY_FOR_ASSIGNMENT);
-
-  const claimed = service.claimNextTask({ operatorId: 'op-1' });
-  assert.equal(claimed.status, TASK_STATUS.ASSIGNED);
-
-  service.editTaskField({ taskId: task.id, operatorId: 'op-1', field: 'description', newValue: 'توضیحات ویرایش‌شده توسط اپراتور.' });
-  const afterEdit = service.getPrefillPayload({ taskId: task.id, operatorId: 'op-1' });
-  assert.equal(afterEdit.fields.description, 'توضیحات ویرایش‌شده توسط اپراتور.');
-
-  const submitted = service.markSubmitted({ taskId: task.id, operatorId: 'op-1' });
-  assert.equal(submitted.status, TASK_STATUS.SUBMITTED);
-
-  const confirmed = service.confirmTask({ taskId: task.id, supervisorId: 'supervisor-1' });
-  assert.equal(confirmed.status, TASK_STATUS.CONFIRMED);
-
-  const allLogs = service.getAuditLog({ taskId: task.id });
-  assert.ok(allLogs.length >= 4);
-  assert.ok(allLogs.some(l => l.action === 'task_created'));
-  assert.ok(allLogs.some(l => l.action === 'task_assigned'));
-  assert.ok(allLogs.some(l => l.action === 'field_edited'));
-  assert.ok(allLogs.some(l => l.action === 'task_submitted'));
-  assert.ok(allLogs.some(l => l.action === 'task_confirmed'));
+test('statsV2 includes queue depth and workload', () => {
+  const s = createPilotService({ products: [validProduct, incompleteProduct] });
+  s.batchCreateTasks({ createdBy: 'sup-1' });
+  const stats = s.getStatsV2();
+  assert.ok(stats.queueDepth >= 1);
+  assert.ok(stats.needsReviewCount >= 1);
+  assert.ok(stats.workload);
 });

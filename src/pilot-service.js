@@ -93,6 +93,13 @@ export function createPilotService({ products = [] } = {}) {
     return entry;
   }
 
+  function countActiveTasks(operatorId) {
+    return tasks.filter(t =>
+      t.assignedOperatorId === operatorId &&
+      (t.status === TASK_STATUS.ASSIGNED || t.status === TASK_STATUS.PREFILL_READY)
+    ).length;
+  }
+
   // ── Public API ──────────────────────────────────────────────────
 
   return {
@@ -353,6 +360,70 @@ export function createPilotService({ products = [] } = {}) {
     // List all products
     listProducts() {
       return Array.from(productsById.values()).map(p => structuredClone(p));
+    },
+
+    // ── Phase 2: Batch create tasks from all products ──────────────
+    batchCreateTasks({ createdBy }) {
+      const results = [];
+      for (const product of productsById.values()) {
+        if (product.category !== activeMobilePhoneMapping.targetCategory) continue;
+        // Skip if task already exists for this product
+        const existing = tasks.find(t => t.productId === product.id);
+        if (existing) continue;
+        const result = this.createTask({ productId: product.id, createdBy });
+        results.push(result);
+      }
+      return results;
+    },
+
+    // ── Phase 2: Smart assign — pick operator with fewest active tasks ─
+    smartAssign({ operators }) {
+      if (!operators || operators.length === 0) throw new Error('اپراتوری برای تخصیص مشخص نشده.');
+
+      // Find operator with fewest active (assigned/prefill_ready) tasks
+      let bestOperator = null;
+      let bestCount = Infinity;
+      for (const op of operators) {
+        const count = countActiveTasks(op.id);
+        if (count < bestCount) {
+          bestCount = count;
+          bestOperator = op;
+        }
+      }
+
+      if (!bestOperator) return null;
+      return this.claimNextTask({ operatorId: bestOperator.id });
+    },
+
+    // ── Phase 2: Get workload for all operators ────────────────────
+    getWorkload() {
+      const workload = {};
+      for (const t of tasks) {
+        if (t.assignedOperatorId) {
+          if (!workload[t.assignedOperatorId]) {
+            workload[t.assignedOperatorId] = { active: 0, completed: 0, total: 0 };
+          }
+          workload[t.assignedOperatorId].total++;
+          if (t.status === TASK_STATUS.CONFIRMED || t.status === TASK_STATUS.REJECTED) {
+            workload[t.assignedOperatorId].completed++;
+          }
+          if (t.status === TASK_STATUS.ASSIGNED || t.status === TASK_STATUS.PREFILL_READY) {
+            workload[t.assignedOperatorId].active++;
+          }
+        }
+      }
+      return workload;
+    },
+
+    // ── Phase 2: Enhanced stats ────────────────────────────────────
+    getStatsV2() {
+      const base = this.getStats();
+      return {
+        ...base,
+        workload: this.getWorkload(),
+        queueDepth: tasks.filter(t => t.status === TASK_STATUS.READY_FOR_ASSIGNMENT).length,
+        needsReviewCount: tasks.filter(t => t.status === TASK_STATUS.NEEDS_REVIEW).length,
+      };
     },
   };
 }
