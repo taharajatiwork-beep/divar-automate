@@ -340,7 +340,22 @@
       'در صورت عدم انتخاب فیلد‌ها خودکار انتخاب کنید'
     );
 
-    // Note: Divar auto-advances to next page — no need to click "بعدی"
+    // Auto-click "بعدی" — Divar needs a few seconds to load car fields
+    setTimeout(() => {
+      for (const btn of document.querySelectorAll('button')) {
+        const t = (btn.textContent || '').trim();
+        if (t.includes('بعدی') && btn.offsetParent && !btn.disabled) {
+          log('clicking بعدی...');
+          btn.click();
+          // Re-run orchestrate after page loads new fields
+          setTimeout(() => {
+            filledKeys.clear();
+            orchestrate();
+          }, 5000);
+          break;
+        }
+      }
+    }, 2000);
   }
 
   // ══════════════════════════════════════════════════════════════════
