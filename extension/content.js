@@ -228,6 +228,12 @@
       }
     }
 
+        // Wait for select buttons to appear (lazy-loaded)
+    for (let w = 0; w < 15; w++) {
+      if (document.querySelector("button[name=year]")) break;
+      await new Promise(r => setTimeout(r, 500));
+    }
+
     // 4. Select dropdowns (car-specific) — match by name attribute
     const selects = [
       { name: 'mileage', value: pf.mileage },
@@ -334,17 +340,7 @@
       'در صورت عدم انتخاب فیلد‌ها خودکار انتخاب کنید'
     );
 
-    // Auto-click next after 2s
-    setTimeout(() => {
-      for (const btn of document.querySelectorAll('button')) {
-        const t = (btn.textContent || '').trim();
-        if (t.includes('بعدی') && btn.offsetParent && !btn.disabled) {
-          log('clicking next...');
-          btn.click();
-          break;
-        }
-      }
-    }, 2000);
+    // Note: Divar auto-advances to next page — no need to click "بعدی"
   }
 
   // ══════════════════════════════════════════════════════════════════
