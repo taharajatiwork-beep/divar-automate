@@ -1,4 +1,7 @@
 import { createServer } from 'node:http';
+import { readFileSync, existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createDatabase } from './database.js';
 import { createPilotService } from './pilot-service.js';
 import { createAuthService, authMiddleware } from './auth.js';
@@ -59,6 +62,24 @@ const server = createServer(async (req, res) => {
   const path = url.pathname;
 
   try {
+    // ── Serve images (no auth needed) ────────────────────────────
+    if (method === 'GET' && path.startsWith('/images/')) {
+      const filename = path.replace('/images/', '');
+      const candidates = [
+        join(process.cwd(), 'data', 'images', filename),
+        join(dirname(fileURLToPath(import.meta.url)), '..', 'data', 'images', filename),
+      ];
+      const imgPath = candidates.find(p => existsSync(p));
+      if (imgPath) {
+        const data = readFileSync(imgPath);
+        const ext = imgPath.split('.').pop().toLowerCase();
+        const mime = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' }[ext] || 'application/octet-stream';
+        res.writeHead(200, { 'content-type': mime, 'access-control-allow-origin': '*', 'cache-control': 'public, max-age=86400' });
+        return res.end(data);
+      }
+      return sendJson(res, 404, { error: 'تصویر پیدا نشد.' });
+    }
+
     const user = authenticate(req);
 
     // ── Health ────────────────────────────────────────────────────
@@ -138,7 +159,7 @@ const server = createServer(async (req, res) => {
       if (p.status !== 'locked' || p.locked_by !== user.id) {
         return sendJson(res, 403, { error: 'این محصول قفل نیست یا قفل شما نیست.' });
       }
-      return sendJson(res, 200, { prefill: { title: p.title, description: p.description, price: p.price, attributes: p.attributes, category: p.category, city: p.city } });
+      return sendJson(res, 200, { prefill: { title: p.title, description: p.description, price: p.price, attributes: p.attributes, category: p.category, city: p.city, images: (p.images || []).map(u => u.replace('https://cdn.example.test', 'http://localhost:3000')) } });
     }
 
     // ── Pending prefill (web panel stores, extension reads) ──────

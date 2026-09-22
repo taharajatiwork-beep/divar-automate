@@ -180,7 +180,60 @@
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // ORCHESTRATE — poll, fill, then click next
+  // IMAGE UPLOAD — fetch images and set on file input
+  // ══════════════════════════════════════════════════════════════════
+  async function uploadImages() {
+    if (!currentPrefill?.images?.length) return;
+
+    const fileInput = document.querySelector('input[type="file"][name="Images"]');
+    if (!fileInput) { warn('file input not found'); return; }
+
+    const files = [];
+    for (const url of currentPrefill.images) {
+      try {
+        const fullUrl = url.startsWith('http') ? url : 'http://localhost:3000' + url;
+        log('downloading image:', fullUrl);
+        const resp = await fetch(fullUrl);
+        if (!resp.ok) { warn('image fetch failed:', resp.status); continue; }
+        const blob = await resp.blob();
+        const filename = url.split('/').pop() || 'image.jpg';
+        const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+        files.push(file);
+      } catch (e) { warn('image error:', e.message); }
+    }
+
+    if (files.length === 0) { warn('no images downloaded'); return; }
+
+    // Try DataTransfer API
+    try {
+      const dt = new DataTransfer();
+      for (const f of files) dt.items.add(f);
+      fileInput.files = dt.files;
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+      log('uploaded', files.length, 'images via DataTransfer');
+    } catch (e) {
+      warn('DataTransfer failed:', e.message);
+      // Fallback: show download links
+      showImageLinks(currentPrefill.images);
+    }
+  }
+
+  function showImageLinks(images) {
+    if (!images?.length) return;
+    const div = document.createElement('div');
+    div.style.cssText = 'position:fixed;top:80px;left:20px;z-index:999999;background:#1e3a5f;color:white;padding:16px;border-radius:12px;font-family:Vazirmatn;font-size:13px;direction:rtl;box-shadow:0 4px 20px rgba(0,0,0,0.4);max-width:300px;line-height:1.8';
+    div.innerHTML = '<div style="font-weight:bold;margin-bottom:8px">📸 عکس‌ها رو دستی آپلود کن:</div>';
+    images.forEach((url, i) => {
+      const fullUrl = url.startsWith('http') ? url : 'http://localhost:3000' + url;
+      div.innerHTML += '<a href="' + fullUrl + '" target="_blank" download style="color:#60a5fa;display:block;margin:4px 0">دانلود عکس ' + (i+1) + '</a>';
+    });
+    div.innerHTML += '<div style="margin-top:8px;font-size:11px;color:#94a3b8">بعد از دانلود، عکس رو بکش توی فرم</div>';
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 30000);
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // ORCHESTRATE — fill then auto-advance
   // ══════════════════════════════════════════════════════════════════
   async function orchestrate() {
     if (!currentPrefill) return;
@@ -214,7 +267,9 @@
       }
     }
 
-    // Phase 3: all available fields filled — show result
+    // Phase 3: all available fields filled — upload images + show result
+    uploadImages(); // async, non-blocking
+
     const allFields = findFormFields();
     const totalAvailable = Object.keys(allFields).length;
 
