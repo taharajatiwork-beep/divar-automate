@@ -3,9 +3,13 @@ import { createServer } from 'node:http';
 import { mockProducts } from './mock-products.js';
 import { createPilotService } from './pilot-service.js';
 import { createAuthService, authMiddleware } from './auth.js';
+import { createQuotaService } from './quota.js';
+import { createImageService } from './images.js';
 
 const service = createPilotService({ products: mockProducts });
 const authService = createAuthService();
+const quotaService = createQuotaService();
+const imageService = createImageService();
 const authenticate = authMiddleware(authService);
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -201,6 +205,64 @@ const server = createServer(async (req, res) => {
     if (method === 'GET' && path === '/api/mapping') {
       requireAuth(user, 'mapping:read');
       return sendJson(res, 200, { mapping: service.getMapping() });
+    }
+
+    // ── Quota ──────────────────────────────────────────────────────
+    if (method === 'GET' && path === '/api/quota') {
+      requireAuth(user, 'stats:read');
+      return sendJson(res, 200, { accounts: quotaService.getAllStatus() });
+    }
+
+    if (method === 'GET' && path.match(/^\/api\/quota\/[^/]+$/)) {
+      requireAuth(user, 'stats:read');
+      const accountId = path.split('/').pop();
+      return sendJson(res, 200, { quota: quotaService.getStatus({ accountId }) });
+    }
+
+    if (method === 'POST' && path === '/api/quota/set-limit') {
+      requireAuth(user, 'task:assign');
+      const body = await readJson(req);
+      if (!body.accountId || !body.limit) return sendJson(res, 400, { error: 'accountId و limit الزامی‌اند.' });
+      const result = quotaService.setDailyLimit({ accountId: body.accountId, limit: body.limit });
+      return sendJson(res, 200, { quota: result });
+    }
+
+    if (method === 'POST' && path === '/api/quota/record') {
+      requireAuth(user, 'task:confirm');
+      const body = await readJson(req);
+      if (!body.accountId) return sendJson(res, 400, { error: 'accountId الزامی است.' });
+      const result = quotaService.recordPost({ accountId: body.accountId });
+      return sendJson(res, 200, { quota: result });
+    }
+
+    if (method === 'POST' && path === '/api/quota/check') {
+      requireAuth(user, 'task:claim');
+      const body = await readJson(req);
+      if (!body.accountId) return sendJson(res, 400, { error: 'accountId الزامی است.' });
+      const result = quotaService.canPost({ accountId: body.accountId });
+      return sendJson(res, 200, result);
+    }
+
+    // ── Images ─────────────────────────────────────────────────────
+    if (method === 'POST' && path === '/api/images/prepare') {
+      requireAuth(user, 'task:create');
+      const body = await readJson(req);
+      if (!body.taskId) return sendJson(res, 400, { error: 'taskId الزامی است.' });
+      const manifest = imageService.prepareForTask({ taskId: body.taskId, imageUrls: body.imageUrls || [] });
+      return sendJson(res, 200, { manifest });
+    }
+
+    if (method === 'GET' && path.match(/^\/api\/images\/[^/]+$/)) {
+      requireAuth(user, 'task:read_all');
+      const taskId = path.split('/').pop();
+      const manifest = imageService.getManifest({ taskId });
+      if (!manifest) return sendJson(res, 404, { error: 'manifest پیدا نشد.' });
+      return sendJson(res, 200, { manifest });
+    }
+
+    if (method === 'GET' && path === '/api/images/summary') {
+      requireAuth(user, 'stats:read');
+      return sendJson(res, 200, { summary: imageService.getSummary() });
     }
 
     return sendJson(res, 404, { error: 'مسیر پیدا نشد.' });
