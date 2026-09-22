@@ -82,7 +82,7 @@ async function openDivarTab() {
 
 // ── Core operations ─────────────────────────────────────────────────
 async function claimNextTask() {
-  const data = await apiFetch('/api/tasks/claim-next', { method: 'POST', body: '{}' });
+  const data = await apiFetch('/api/tasks/smart-assign', { method: 'POST', body: '{}' });
   currentTask = data.task;
   if (currentTask) {
     await loadPrefill(currentTask.id);

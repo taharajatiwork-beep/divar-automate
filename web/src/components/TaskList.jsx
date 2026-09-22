@@ -21,33 +21,43 @@ const STATUS_BADGE = {
   rejected: 'bg-red-900/40 text-red-300',
 };
 
-export default function TaskList({ onSelect, onRefresh }) {
+const CAT_ICONS = { 'mobile-phones': '📱', 'laptops': '💻', 'accessories': '🎧' };
+
+export default function TaskList({ onSelect, onRefresh, token, user }) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
+  const [catFilter, setCatFilter] = useState('');
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [creating, setCreating] = useState(false);
+
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
   const load = () => {
     setLoading(true);
-    fetch('/api/tasks')
+    const params = new URLSearchParams();
+    if (catFilter) params.set('category', catFilter);
+    const qs = params.toString() ? `?${params}` : '';
+    fetch(`/api/tasks${qs}`, { headers: authHeaders })
       .then(r => r.json())
       .then(d => { setTasks(d.tasks || []); setLoading(false); })
       .catch(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [catFilter]);
 
   useEffect(() => {
-    fetch('/api/products').then(r => r.json()).then(d => setProducts(d.products || []));
+    fetch('/api/products', { headers: authHeaders }).then(r => r.json()).then(d => setProducts(d.products || []));
+    fetch('/api/categories/active', { headers: authHeaders }).then(r => r.json()).then(d => setCategories(d.categories || []));
   }, []);
 
   const createTask = (productId) => {
     setCreating(true);
     fetch('/api/tasks', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ productId, createdBy: 'supervisor-demo' }),
+      headers: { 'content-type': 'application/json', ...authHeaders },
+      body: JSON.stringify({ productId }),
     })
       .then(r => r.json())
       .then(() => { load(); onRefresh(); setCreating(false); })
@@ -55,10 +65,9 @@ export default function TaskList({ onSelect, onRefresh }) {
   };
 
   const claimNext = () => {
-    fetch('/api/tasks/claim-next', {
+    fetch('/api/tasks/smart-assign', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ operatorId: 'op-pilot-1' }),
+      headers: { 'content-type': 'application/json', ...authHeaders },
     })
       .then(r => r.json())
       .then(() => { load(); onRefresh(); });
@@ -83,7 +92,7 @@ export default function TaskList({ onSelect, onRefresh }) {
       {/* Create new task */}
       <div className="bg-dark-900 rounded-xl border border-dark-700 p-4">
         <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-          <Plus size={16} /> ساخت وظیفه جدید از محصول Mock
+          <Plus size={16} /> ساخت وظیفه جدید از محصول
         </h3>
         <div className="flex flex-wrap gap-2">
           {products.map(p => (
@@ -93,21 +102,43 @@ export default function TaskList({ onSelect, onRefresh }) {
               disabled={creating}
               className="px-3 py-2 bg-dark-700 hover:bg-dark-600 disabled:opacity-50 rounded-lg text-sm text-gray-300 transition-colors"
             >
-              {p.title} ({p.id})
+              {CAT_ICONS[p.category] || ''} {p.title}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Claim next task */}
+      {/* Smart assign */}
       <button
         onClick={claimNext}
         className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm text-white font-medium transition-colors"
       >
-        تخصیص وظیفه بعدی به op-pilot-1
+        تخصیص هوشمند وظیفه بعدی
       </button>
 
-      {/* Filter chips */}
+      {/* Category filter */}
+      {categories.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-dark-500">دسته‌بندی:</span>
+          <button
+            onClick={() => setCatFilter('')}
+            className={`px-3 py-1 rounded-full text-xs transition-colors ${!catFilter ? 'bg-dark-600 text-white' : 'bg-dark-800 text-dark-500 hover:text-gray-300'}`}
+          >
+            همه
+          </button>
+          {categories.map(c => (
+            <button
+              key={c.id}
+              onClick={() => setCatFilter(c.id)}
+              className={`px-3 py-1 rounded-full text-xs transition-colors ${catFilter === c.id ? 'bg-dark-600 text-white' : 'bg-dark-800 text-dark-500 hover:text-gray-300'}`}
+            >
+              {c.icon} {c.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Status filter */}
       <div className="flex items-center gap-2 flex-wrap">
         <Filter size={14} className="text-dark-500" />
         <button
@@ -138,7 +169,7 @@ export default function TaskList({ onSelect, onRefresh }) {
             <thead>
               <tr className="border-b border-dark-700">
                 <th className="px-4 py-3 text-right text-dark-500 font-medium">شناسه</th>
-                <th className="px-4 py-3 text-right text-dark-500 font-medium">محصول</th>
+                <th className="px-4 py-3 text-right text-dark-500 font-medium">دسته</th>
                 <th className="px-4 py-3 text-right text-dark-500 font-medium">عنوان آگهی</th>
                 <th className="px-4 py-3 text-right text-dark-500 font-medium">قیمت</th>
                 <th className="px-4 py-3 text-right text-dark-500 font-medium">وضعیت</th>
@@ -154,7 +185,7 @@ export default function TaskList({ onSelect, onRefresh }) {
                   className="border-b border-dark-800 hover:bg-dark-800 cursor-pointer transition-colors"
                 >
                   <td className="px-4 py-3 text-white font-mono text-xs">{t.id}</td>
-                  <td className="px-4 py-3 text-gray-400">{t.productId}</td>
+                  <td className="px-4 py-3">{CAT_ICONS[t.category] || ''} <span className="text-gray-400 text-xs">{t.category}</span></td>
                   <td className="px-4 py-3 text-gray-300 max-w-[200px] truncate">{t.payload?.title || '—'}</td>
                   <td className="px-4 py-3 text-gray-300 whitespace-nowrap">{(t.payload?.price || 0).toLocaleString('fa-IR')} تومان</td>
                   <td className="px-4 py-3">

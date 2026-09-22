@@ -130,7 +130,7 @@ async function showStatus() {
             اپراتورها وظایف را از اینجا دریافت می‌کنند.<br/>
             شما می‌توانید آمار و لاگ را در پنل مدیریت مشاهده کنید.
           </div>
-          <a href="http://localhost:5173" target="_blank" class="btn btn-secondary" style="margin-top:8px; display:block; text-align:center; text-decoration:none;">
+          <a href="http://localhost:5174" target="_blank" class="btn btn-secondary" style="margin-top:8px; display:block; text-align:center; text-decoration:none;">
             📊 بازکردن پنل مدیریت
           </a>
         `}

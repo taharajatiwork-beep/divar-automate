@@ -1,0 +1,229 @@
+[
+  {
+    "id": "P001",
+    "title": "گوشی سامسونگ Galaxy A55 5G",
+    "description": "دستگاه کاملاً سالم با جعبه و لوازم جانبی اصلی. رنگ: آبی.",
+    "price": 22500000,
+    "category": "mobile-phones",
+    "attributes": {
+      "brand": "Samsung",
+      "model": "Galaxy A55 5G",
+      "storage": "256GB",
+      "color": "آبی"
+    },
+    "images": [
+      "https://cdn.example.test/P001/01.jpg",
+      "https://cdn.example.test/P001/02.jpg"
+    ],
+    "city": "تهران",
+    "createdAt": "2026-09-22T08:45:10.287Z",
+    "updatedAt": "2026-09-22T08:45:10.287Z",
+    "status": "active"
+  },
+  {
+    "id": "P002",
+    "title": "گوشی شیائومی Redmi Note 13",
+    "description": "موبایل کارکرده و تمیز. شارژر اصلی موجود.",
+    "price": 10500000,
+    "category": "mobile-phones",
+    "attributes": {
+      "brand": "Xiaomi",
+      "model": "Redmi Note 13",
+      "storage": "128GB",
+      "color": "مشکی"
+    },
+    "images": [
+      "https://cdn.example.test/P002/01.jpg"
+    ],
+    "city": "تهران",
+    "createdAt": "2026-09-22T08:45:10.287Z",
+    "updatedAt": "2026-09-22T08:45:10.287Z",
+    "status": "active"
+  },
+  {
+    "id": "P003",
+    "title": "گوشی اپل iPhone 15 Pro",
+    "description": "آیفون ۱۵ پرو ۲۵۶ گیگ. خاکستری تیتانیوم. فعال تا ۱۴۰۰.",
+    "price": 72000000,
+    "category": "mobile-phones",
+    "attributes": {
+      "brand": "Apple",
+      "model": "iPhone 15 Pro",
+      "storage": "256GB",
+      "color": "خاکستری"
+    },
+    "images": [
+      "https://cdn.example.test/P003/01.jpg",
+      "https://cdn.example.test/P003/02.jpg"
+    ],
+    "city": "اصفهان",
+    "createdAt": "2026-09-22T08:45:10.287Z",
+    "updatedAt": "2026-09-22T08:45:10.287Z",
+    "status": "active"
+  },
+  {
+    "id": "P004",
+    "title": "گوشی سامسونگ Galaxy S24 Ultra",
+    "description": "گلکسی S24 اولترا. نو. با گارانتی سامسونگ.",
+    "price": 85000000,
+    "category": "mobile-phones",
+    "attributes": {
+      "brand": "Samsung",
+      "model": "Galaxy S24 Ultra",
+      "storage": "512GB",
+      "color": "بنفش"
+    },
+    "images": [
+      "https://cdn.example.test/P004/01.jpg"
+    ],
+    "city": "تهران",
+    "createdAt": "2026-09-22T08:45:10.287Z",
+    "updatedAt": "2026-09-22T08:45:10.287Z",
+    "status": "active"
+  },
+  {
+    "id": "P005",
+    "title": "گوشی پوکو X6 Pro",
+    "description": "پوکو X6 پرو. سالم. با محافظ صفحه.",
+    "price": 14000000,
+    "category": "mobile-phones",
+    "attributes": {
+      "brand": "POCO",
+      "model": "X6 Pro",
+      "storage": "256GB",
+      "color": "سرمه‌ای"
+    },
+    "images": [],
+    "city": "شیراز",
+    "createdAt": "2026-09-22T08:45:10.287Z",
+    "updatedAt": "2026-09-22T08:45:10.287Z",
+    "status": "active"
+  },
+  {
+    "id": "P006",
+    "title": "لپ‌تاپ ایسوس ZenBook 14 OLED",
+    "description": "لپ‌تاپ نو با گارانتی رسمی. صفحه OLED عالی.",
+    "price": 48000000,
+    "category": "laptops",
+    "attributes": {
+      "brand": "ASUS",
+      "model": "ZenBook 14 UX3405",
+      "cpu": "Intel Core Ultra 7 155H",
+      "ram": "16GB",
+      "storage": "512GB SSD",
+      "gpu": "Intel Arc iGPU",
+      "display": "14\" OLED 2.8K"
+    },
+    "images": [
+      "https://cdn.example.test/P006/01.jpg"
+    ],
+    "city": "تهران",
+    "createdAt": "2026-09-22T08:45:10.287Z",
+    "updatedAt": "2026-09-22T08:45:10.287Z",
+    "status": "active"
+  },
+  {
+    "id": "P007",
+    "title": "لپ‌تاپ اپل MacBook Air M3 15\"",
+    "description": "مک‌بوک ایر M3. ۱۵ اینچ. فوق‌العاده سبک.",
+    "price": 65000000,
+    "category": "laptops",
+    "attributes": {
+      "brand": "Apple",
+      "model": "MacBook Air 15\" M3",
+      "cpu": "Apple M3",
+      "ram": "16GB",
+      "storage": "512GB SSD",
+      "gpu": "10-core GPU",
+      "display": "15.3\" Liquid Retina"
+    },
+    "images": [
+      "https://cdn.example.test/P007/01.jpg",
+      "https://cdn.example.test/P007/02.jpg"
+    ],
+    "city": "تهران",
+    "createdAt": "2026-09-22T08:45:10.287Z",
+    "updatedAt": "2026-09-22T08:45:10.287Z",
+    "status": "active"
+  },
+  {
+    "id": "P008",
+    "title": "لپ‌تاپ لنوو Legion Pro 5",
+    "description": "لپ‌تاپ گیمینگ. RTX 4070. مناسب بازی و رندر.",
+    "price": 78000000,
+    "category": "laptops",
+    "attributes": {
+      "brand": "Lenovo",
+      "model": "Legion Pro 5 16IRX9",
+      "cpu": "Intel Core i9-14900HX",
+      "ram": "32GB",
+      "storage": "1TB SSD",
+      "gpu": "RTX 4070 8GB",
+      "display": "16\" IPS 240Hz"
+    },
+    "images": [
+      "https://cdn.example.test/P008/01.jpg"
+    ],
+    "city": "تبریز",
+    "createdAt": "2026-09-22T08:45:10.287Z",
+    "updatedAt": "2026-09-22T08:45:10.287Z",
+    "status": "active"
+  },
+  {
+    "id": "P009",
+    "title": "هدفون سامسونگ Galaxy Buds2 Pro",
+    "description": "هدفون بی‌سیم اصل. نویزگیر فعال. وضعیت: نو.",
+    "price": 3800000,
+    "category": "accessories",
+    "attributes": {
+      "brand": "Samsung",
+      "type": "هدفون بی‌سیم",
+      "color": "سفید"
+    },
+    "images": [
+      "https://cdn.example.test/P009/01.jpg"
+    ],
+    "city": "تهران",
+    "createdAt": "2026-09-22T08:45:10.287Z",
+    "updatedAt": "2026-09-22T08:45:10.287Z",
+    "status": "active"
+  },
+  {
+    "id": "P010",
+    "title": "قاب محافظ آیفون 15 Pro Max",
+    "description": "قاب سیلیکونی اصلی اپل. رنگ: نیمه‌شفاف.",
+    "price": 950000,
+    "category": "accessories",
+    "attributes": {
+      "brand": "Apple",
+      "type": "قاب محافظ",
+      "color": "نیمه‌شفاف"
+    },
+    "images": [
+      "https://cdn.example.test/P010/01.jpg"
+    ],
+    "city": "تهران",
+    "createdAt": "2026-09-22T08:45:10.287Z",
+    "updatedAt": "2026-09-22T08:45:10.287Z",
+    "status": "active"
+  },
+  {
+    "id": "P011",
+    "title": "شارژر بی‌سیم سامسونگ 15W",
+    "description": "شارژر وایرلس اصلی سامسونگ. با کابل.",
+    "price": 1200000,
+    "category": "accessories",
+    "attributes": {
+      "brand": "Samsung",
+      "type": "شارژر بی‌سیم",
+      "power": "15W"
+    },
+    "images": [
+      "https://cdn.example.test/P011/01.jpg"
+    ],
+    "city": "کرمان",
+    "createdAt": "2026-09-22T08:45:10.287Z",
+    "updatedAt": "2026-09-22T08:45:10.287Z",
+    "status": "active"
+  }
+]

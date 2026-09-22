@@ -21,14 +21,16 @@ const ACTION_COLORS = {
   task_rejected:  'text-red-400',
 };
 
-export default function AuditLog() {
+export default function AuditLog({ token }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
   const load = () => {
     setLoading(true);
-    fetch('/api/audit')
+    fetch('/api/audit', { headers: authHeaders })
       .then(r => r.json())
       .then(d => { setLogs(d.logs || []); setLoading(false); })
       .catch(() => setLoading(false));

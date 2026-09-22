@@ -31,7 +31,7 @@ const FIELD_LABELS = {
   'attributes.storage': 'حافظه',
 };
 
-export default function TaskDetail({ taskId, onBack, onRefresh }) {
+export default function TaskDetail({ taskId, onBack, onRefresh, token, user }) {
   const [task, setTask] = useState(null);
   const [prefill, setPrefill] = useState(null);
   const [logs, setLogs] = useState([]);
@@ -44,15 +44,15 @@ export default function TaskDetail({ taskId, onBack, onRefresh }) {
   const [showAudit, setShowAudit] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const OPERATOR = 'op-pilot-1';
-  const SUPERVISOR = 'supervisor-1';
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+  const jsonHeaders = { 'content-type': 'application/json', ...authHeaders };
 
   const load = () => {
     setLoading(true);
     Promise.all([
-      fetch(`/api/tasks/${taskId}`).then(r => r.json()),
-      fetch(`/api/tasks/${taskId}/prefill?operatorId=${OPERATOR}`).then(r => r.json()).catch(() => ({ prefill: null })),
-      fetch(`/api/tasks/${taskId}/audit`).then(r => r.json()).catch(() => ({ logs: [] })),
+      fetch(`/api/tasks/${taskId}`, { headers: authHeaders }).then(r => r.json()),
+      fetch(`/api/tasks/${taskId}/prefill`, { headers: authHeaders }).then(r => r.json()).catch(() => ({ prefill: null })),
+      fetch(`/api/tasks/${taskId}/audit`, { headers: authHeaders }).then(r => r.json()).catch(() => ({ logs: [] })),
     ])
       .then(([taskData, prefillData, auditData]) => {
         setTask(taskData.task);
@@ -69,8 +69,8 @@ export default function TaskDetail({ taskId, onBack, onRefresh }) {
     setActionLoading(true);
     fetch(`/api/tasks/${taskId}/field`, {
       method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ operatorId: OPERATOR, field, newValue: editValue }),
+      headers: jsonHeaders,
+      body: JSON.stringify({ field, newValue: editValue }),
     })
       .then(r => r.json())
       .then(() => { setEditing(null); load(); onRefresh(); })
@@ -81,8 +81,7 @@ export default function TaskDetail({ taskId, onBack, onRefresh }) {
     setActionLoading(true);
     fetch(`/api/tasks/${taskId}/submit`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ operatorId: OPERATOR }),
+      headers: jsonHeaders,
     })
       .then(r => r.json())
       .then(() => { load(); onRefresh(); })
@@ -93,8 +92,7 @@ export default function TaskDetail({ taskId, onBack, onRefresh }) {
     setActionLoading(true);
     fetch(`/api/tasks/${taskId}/confirm`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ supervisorId: SUPERVISOR }),
+      headers: jsonHeaders,
     })
       .then(r => r.json())
       .then(() => { setShowConfirmDialog(false); load(); onRefresh(); })
@@ -105,8 +103,8 @@ export default function TaskDetail({ taskId, onBack, onRefresh }) {
     setActionLoading(true);
     fetch(`/api/tasks/${taskId}/reject`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ supervisorId: SUPERVISOR, reason: confirmReason }),
+      headers: jsonHeaders,
+      body: JSON.stringify({ reason: confirmReason }),
     })
       .then(r => r.json())
       .then(() => { setShowRejectDialog(false); setConfirmReason(''); load(); onRefresh(); })
