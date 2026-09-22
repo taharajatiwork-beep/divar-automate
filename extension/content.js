@@ -387,17 +387,25 @@
       } catch (e) { warn('select error:', s.fieldId, e.message); }
     }
 
-    // Brand/model: different component (kt-action-field), uses #brand_model
+    // Brand/model: trigger is #brand_model___Input (from label for="brand_model___Input")
     const brandVal = pf.brand && pf.model ? pf.brand + ' ' + pf.model : pf.brand;
     if (brandVal) {
       try {
-        const ok = await clickDivarDropdownByName('brand_model', String(brandVal), 'برند و مدل');
+        const ok = await clickDivarDropdownByName('brand_model___Input', String(brandVal), 'برند و مدل');
         if (ok) selectFilled++;
       } catch (e) { warn('brand error:', e.message); }
     }
 
-    // Mileage (usage) is a text INPUT, not a select
-    const usageEl = document.querySelector('#usage input[name="usage"], #usage input');
+    // Location (مکان آگهی) - select dropdown
+    if (pf.city) {
+      try {
+        const ok = await clickDivarDropdownByName('city', String(pf.city), 'مکان آگهی');
+        if (ok) selectFilled++;
+      } catch (e) { warn('city error:', e.message); }
+    }
+
+    // Mileage (usage) is a text INPUT with id #usage___Input
+    const usageEl = document.querySelector('#usage___Input');
     if (usageEl && pf.mileage && setTextValue(usageEl, String(pf.mileage))) {
       selectFilled++;
       log('✅ usage:', pf.mileage);
