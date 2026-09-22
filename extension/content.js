@@ -109,49 +109,29 @@
   // ══════════════════════════════════════════════════════════════════
   // DIVAR DROPDOWN — click trigger, modal opens, pick option
   // ══════════════════════════════════════════════════════════════════
-  async function clickDivarDropdown(labelText, optionText) {
+  async function clickDivarDropdownByName(name, optionText, labelText) {
     if (!optionText) return false;
+    labelText = labelText || name;
 
-    // Find the dropdown TRIGGER BUTTON (button.kt-select-field) 
-    // by looking for nearby label text
-    const triggers = [...document.querySelectorAll('button.kt-select-field, button[class*="select-field"]')]
-      .filter(b => b.offsetParent);
-    
-    let trigger = null;
-    
-    // Strategy 1: walk up from trigger to find label text in parent
-    for (const btn of triggers) {
-      let parent = btn.parentElement;
-      for (let i = 0; i < 5 && parent; i++) {
-        const txt = (parent.innerText || '').trim();
-        if (txt.includes(labelText)) { trigger = btn; break; }
-        parent = parent.parentElement;
-      }
-      if (trigger) break;
-    }
-    
-    // Strategy 2: walk up from trigger, check previous siblings
-    if (!trigger) {
-      for (const btn of triggers) {
+    // Strategy 1: find button by name attribute
+    let trigger = document.querySelector('button[name="' + name + '"]');
+
+    // Strategy 2: for brand_and_model — find kt-action-field with label text
+    if (!trigger && labelText) {
+      const btns = [...document.querySelectorAll('button.kt-action-field, button.kt-select-field')]
+        .filter(b => b.offsetParent);
+      for (const btn of btns) {
         let parent = btn.parentElement;
-        for (let i = 0; i < 5 && parent; i++) {
-          const prev = parent.previousElementSibling;
-          if (prev && (prev.innerText || '').includes(labelText)) { trigger = btn; break; }
+        for (let i = 0; i < 6 && parent; i++) {
+          const t = (parent.innerText || '');
+          if (t.includes(labelText)) { trigger = btn; break; }
           parent = parent.parentElement;
         }
         if (trigger) break;
       }
     }
-    
-    // Strategy 3: match by order (brand=1st, mileage=2nd, etc.)
-    if (!trigger) {
-      const labels = ['برند و مدل', 'کارکرد', 'مدل', 'رنگ', 'گیربکس', 'سوخت'];
-      const idx = labels.indexOf(labelText);
-      if (idx >= 0 && idx < triggers.length) trigger = triggers[idx];
-    }
-    
-    if (!trigger) { warn('trigger not found:', labelText); return false; }
 
+    if (!trigger) { warn('trigger not found:', labelText); return false; }
     // Click to open modal
     trigger.click();
     await new Promise(r => setTimeout(r, 1000));
@@ -248,22 +228,30 @@
       }
     }
 
-    // 4. Select dropdowns (car-specific)
+    // 4. Select dropdowns (car-specific) — match by name attribute
     const selects = [
-      { key: 'brand',    label: 'برند و مدل', value: pf.brand && pf.model ? pf.brand + ' ' + pf.model : pf.brand },
-      { key: 'mileage',  label: 'کارکرد', value: pf.mileage },
-      { key: 'year',     label: 'مدل', value: pf.year },
-      { key: 'color',    label: 'رنگ', value: pf.color },
-      { key: 'gearbox',  label: 'گیربکس', value: pf.gearbox },
-      { key: 'fuel',     label: 'سوخت', value: pf.fuel || 'بنزین' },
+      { name: 'mileage', value: pf.mileage },
+      { name: 'year',    value: pf.year },
+      { name: 'color',   value: pf.color },
+      { name: 'gearbox', value: pf.gearbox },
+      { name: 'fuel_type', value: pf.fuel || 'بنزین' },
     ];
 
-    for (const s of selects) {
-      if (filledKeys.has(s.key) || !s.value) continue;
+    // Brand/model: find by label text in kt-action-field (different component)
+    const brandVal = pf.brand && pf.model ? pf.brand + ' ' + pf.model : pf.brand;
+    if (brandVal && !filledKeys.has('brand')) {
       try {
-        const ok = await clickDivarDropdown(s.label, String(s.value));
-        if (ok) { filledKeys.add(s.key); filled++; }
-      } catch (e) { warn('select error:', s.key, e.message); }
+        const ok = await clickDivarDropdownByName('brand_and_model', String(brandVal), 'برند و مدل');
+        if (ok) { filledKeys.add('brand'); filled++; }
+      } catch (e) { warn('brand select error:', e.message); }
+    }
+
+    for (const s of selects) {
+      if (filledKeys.has(s.name) || !s.value) continue;
+      try {
+        const ok = await clickDivarDropdownByName(s.name, String(s.value));
+        if (ok) { filledKeys.add(s.name); filled++; }
+      } catch (e) { warn('select error:', s.name, e.message); }
     }
 
     return filled;
