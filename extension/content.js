@@ -109,89 +109,69 @@
   // ══════════════════════════════════════════════════════════════════
   // DIVAR DROPDOWN — click trigger, modal opens, pick option
   // ══════════════════════════════════════════════════════════════════
-  async function clickDivarDropdownByName(name, optionText, labelText) {
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  function normalizeOption(value) {
+    return String(value || '')
+      .replace(/[۰-۹]/g, char => '0123456789'['۰۱۲۳۴۵۶۷۸۹'.indexOf(char)])
+      .replace(/[\u200c\u200f\u200e]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
+  async function clickDivarDropdownByName(fieldId, optionText, labelText) {
     if (!optionText) return false;
-    labelText = labelText || name;
+    labelText = labelText || fieldId;
 
-    // Strategy 1: find button by name attribute
-    let trigger = document.querySelector('button[name="' + name + '"]');
-
-    // Strategy 2: for brand_model — find kt-action-field with label text
-    if (!trigger && labelText) {
-      const btns = [...document.querySelectorAll('button.kt-action-field, button.kt-select-field')]
-        .filter(b => b.offsetParent);
-      for (const btn of btns) {
-        let parent = btn.parentElement;
-        for (let i = 0; i < 6 && parent; i++) {
-          const t = (parent.innerText || '');
-          if (t.includes(labelText)) { trigger = btn; break; }
-          parent = parent.parentElement;
-        }
-        if (trigger) break;
-      }
+    // Actual Divar car fields are keyed by id, e.g. #color > #color___Input.
+    const trigger = document.querySelector('#' + CSS.escape(fieldId) + ' button') ||
+      document.querySelector('#' + CSS.escape(fieldId + '___Input'));
+    if (!trigger) {
+      warn('field control not found:', fieldId);
+      return false;
     }
 
-    if (!trigger) { warn('trigger not found:', labelText); return false; }
-    // Click to open modal
+    const before = (trigger.innerText || '').trim();
     trigger.click();
-    await new Promise(r => setTimeout(r, 1000));
-
-    // Look for kt-modal with options
-    const modal = document.querySelector('.kt-modal');
-    if (!modal) { warn('modal not opened for:', labelText); return false; }
-
-    // Try to type in search input to filter
-    const searchInput = modal.querySelector('input[type="text"], input[type="search"]');
-    if (searchInput) {
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-      if (setter) setter.call(searchInput, optionText);
-      else searchInput.value = optionText;
-      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-      await new Promise(r => setTimeout(r, 500));
+    await sleep(700);
+    if (trigger.getAttribute('aria-expanded') !== 'true') {
+      warn('field did not open:', fieldId);
+      return false;
     }
 
-    // Find and click the matching option row
-    const rows = [...modal.querySelectorAll('.kt-base-row, [class*="base-row"]')];
-    let clicked = false;
-    for (const row of rows) {
-      if (!row.offsetParent) continue;
-      const text = (row.textContent || '').trim();
-      if (text.includes(optionText) || optionText.includes(text)) {
-        // Full mouse event sequence for React
-        row.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true}));
-        row.dispatchEvent(new PointerEvent('pointerup', {bubbles:true}));
-        row.click();
-        log('✅ select:', labelText, '=', text.substring(0, 30));
-        clicked = true;
-        break;
-      }
+    // Options are rendered in a portal, not inside the field or a fixed modal.
+    // Inspect all visible clickable rows and only use an exact normalized match.
+    const wanted = normalizeOption(optionText);
+    const candidates = [...document.querySelectorAll(
+      '[role="option"], button, label, .kt-base-row, .kt-control-row, li'
+    )].filter(el => {
+      if (!el.offsetParent || el === trigger) return false;
+      const text = normalizeOption(el.innerText || el.textContent);
+      return text === wanted;
+    });
+
+    if (!candidates.length) {
+      warn('option not found:', fieldId, optionText);
+      trigger.click();
+      return false;
     }
 
-    if (!clicked) {
-      // Try broader search — any div with the text inside modal
-      const divs = [...modal.querySelectorAll('div, span, p')];
-      for (const d of divs) {
-        const t = (d.textContent || '').trim();
-        if (t === optionText && d.offsetParent) {
-          d.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true}));
-          d.dispatchEvent(new PointerEvent('pointerup', {bubbles:true}));
-          d.click();
-          log('\u2705 select (broad):', labelText, '=', t);
-          clicked = true;
-          break;
-        }
-      }
+    const option = candidates.sort((a, b) => a.children.length - b.children.length)[0];
+    option.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    option.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    option.click();
+    await sleep(700);
+
+    const after = (trigger.innerText || '').trim();
+    const committed = normalizeOption(after) === wanted && after !== before;
+    if (!committed) {
+      warn('selection was not committed:', fieldId, { before, after, wanted: optionText });
+      return false;
     }
 
-    if (!clicked) {
-      warn('option not found:', optionText);
-      // Press Escape to close modal
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      await new Promise(r => setTimeout(r, 300));
-    }
-
-    await new Promise(r => setTimeout(r, 500));
-    return clicked;
+    log('✅ committed:', fieldId, '=', after);
+    return true;
   }
 
   // ══════════════════════════════════════════════════════════════════
@@ -374,13 +354,12 @@
     }
     if (!nextClicked) { warn('بعدی button not found'); return; }
 
-    // 4. Wait for Page 2 to load (car-specific select buttons)
+    // 4. Wait for Page 2 car form. Divar uses id-based fields, not name attributes.
     log('waiting for car fields to load...');
     let selectFound = false;
     for (let w = 0; w < 20; w++) {
-      await new Promise(r => setTimeout(r, 500));
-      if (document.querySelector('button[name="year"]') || 
-          document.querySelector('button[name="color"]')) {
+      await sleep(500);
+      if (document.querySelector('#color #color___Input')) {
         selectFound = true;
         break;
       }
@@ -388,39 +367,15 @@
     if (!selectFound) { warn('car fields did not load after بعدی'); return; }
     log('car fields loaded!');
 
-        // 4b. Fill usage (mileage) — it is a text INPUT, not a select
-    const usageEl = document.querySelector("input[name=\"usage\"]");
-    if (usageEl && pf.mileage && setTextValue(usageEl, String(pf.mileage))) {
-      selectFilled++; log("✅", "usage =", pf.mileage);
-    }
-
-    // 5. Fill select dropdowns (Page 2)
-    await new Promise(r => setTimeout(r, 1000)); // extra settle time
-
-    const selects = [
-      { name: 'fuel_type',   value: pf.fuel || 'بنزین' },
-      { name: 'year',        value: pf.year },
-      { name: 'color',       value: pf.color },
-      { name: 'body_status', value: 'سالم و بی‌خط و خش' },
-      { name: 'gearbox',     value: pf.gearbox },
-    ];
-
+    // First controlled regression test: only color. Do not claim success unless
+    // the real trigger text changes from "انتخاب" to the requested color.
     let selectFilled = 0;
-    for (const s of selects) {
-      if (!s.value) continue;
-      try {
-        const ok = await clickDivarDropdownByName(s.name, String(s.value));
-        if (ok) { selectFilled++; log('✅', s.name, '=', s.value); }
-      } catch (e) { warn('select error:', s.name, e.message); }
-    }
-
-    // Brand/model: kt-action-field (different component, search by parent text)
-    const brandVal = pf.brand && pf.model ? pf.brand + ' ' + pf.model : pf.brand;
-    if (brandVal) {
-      try {
-        const ok = await clickDivarDropdownByName('brand_model', String(brandVal), 'برند و مدل');
-        if (ok) { selectFilled++; log('✅', 'brand =', brandVal); }
-      } catch (e) { warn('brand error:', e.message); }
+    await sleep(800);
+    try {
+      const ok = await clickDivarDropdownByName('color', String(pf.color));
+      if (ok) selectFilled++;
+    } catch (e) {
+      warn('color select error:', e.message);
     }
 
     log('done! text:', filled, 'selects:', selectFilled);
