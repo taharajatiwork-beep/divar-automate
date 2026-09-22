@@ -236,11 +236,12 @@
 
     // 4. Select dropdowns (car-specific) — match by name attribute
     const selects = [
-      { name: 'mileage', value: pf.mileage },
-      { name: 'year',    value: pf.year },
-      { name: 'color',   value: pf.color },
-      { name: 'gearbox', value: pf.gearbox },
       { name: 'fuel_type', value: pf.fuel || 'بنزین' },
+      { name: 'mileage',   value: pf.mileage },
+      { name: 'year',      value: pf.year },
+      { name: 'color',     value: pf.color },
+      { name: 'body_status', value: 'سالم و بی‌خط و خش' },
+      { name: 'gearbox',   value: pf.gearbox },
     ];
 
     // Brand/model: find by label text in kt-action-field (different component)
@@ -386,10 +387,12 @@
     await new Promise(r => setTimeout(r, 1000)); // extra settle time
 
     const selects = [
-      { name: 'fuel_type', value: pf.fuel || 'بنزین' },
-      { name: 'year',      value: pf.year },
-      { name: 'color',     value: pf.color },
-      { name: 'gearbox',   value: pf.gearbox },
+      { name: 'fuel_type',   value: pf.fuel || 'بنزین' },
+      { name: 'mileage',     value: pf.mileage },
+      { name: 'year',        value: pf.year },
+      { name: 'color',       value: pf.color },
+      { name: 'body_status', value: 'سالم و بی‌خط و خش' },
+      { name: 'gearbox',     value: pf.gearbox },
     ];
 
     let selectFilled = 0;
@@ -399,6 +402,15 @@
         const ok = await clickDivarDropdownByName(s.name, String(s.value));
         if (ok) { selectFilled++; log('✅', s.name, '=', s.value); }
       } catch (e) { warn('select error:', s.name, e.message); }
+    }
+
+    // Brand/model: kt-action-field (different component, search by parent text)
+    const brandVal = pf.brand && pf.model ? pf.brand + ' ' + pf.model : pf.brand;
+    if (brandVal) {
+      try {
+        const ok = await clickDivarDropdownByName('brand_and_model', String(brandVal), 'برند و مدل');
+        if (ok) { selectFilled++; log('✅', 'brand =', brandVal); }
+      } catch (e) { warn('brand error:', e.message); }
     }
 
     log('done! text:', filled, 'selects:', selectFilled);
