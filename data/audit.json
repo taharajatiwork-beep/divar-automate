@@ -33,5 +33,12 @@
     "operatorId": "op-ali",
     "id": "A00005",
     "timestamp": "2026-09-22T09:48:06.513Z"
+  },
+  {
+    "action": "product_locked",
+    "productId": "P001",
+    "operatorId": "op-ali",
+    "id": "A00006",
+    "timestamp": "2026-09-22T10:20:40.319Z"
   }
 ]
