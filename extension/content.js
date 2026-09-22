@@ -49,34 +49,36 @@
       .filter(el => el.offsetParent !== null && el.type !== 'hidden' && el.type !== 'submit' && el.type !== 'file');
 
     for (const input of inputs) {
-      // Strategy 1: name attribute (most reliable!)
+      // Strategy 1: name attribute (exact match — most reliable)
       const name = input.name || '';
       if (config.names.some(n => name.toLowerCase() === n.toLowerCase())) {
         return input;
       }
+    }
 
-      // Strategy 2: placeholder
+    // Strategy 2: placeholder (only if no name matched)
+    for (const input of inputs) {
       const ph = (input.placeholder || '').toLowerCase();
-      if (config.placeholder.some(p => ph.includes(p.toLowerCase()))) {
+      if (config.ph && config.ph.some(p => ph.includes(p.toLowerCase()))) {
         return input;
       }
-
-      // Strategy 3: aria-label
-      const aria = (input.getAttribute('aria-label') || '').toLowerCase();
-      if (config.labels.some(l => aria.includes(l.toLowerCase()))) {
+      if (config.placeholder && config.placeholder.some(p => ph.includes(p.toLowerCase()))) {
         return input;
-      }
-
-      // Strategy 4: parent text
-      let parent = input.parentElement;
-      for (let depth = 0; depth < 4 && parent; depth++) {
-        const text = (parent.textContent || '').toLowerCase();
-        if (config.labels.some(l => text.includes(l.toLowerCase()))) {
-          return input;
-        }
-        parent = parent.parentElement;
       }
     }
+
+    // Strategy 3: label[for] pointing to this input's id
+    for (const input of inputs) {
+      if (!input.id) continue;
+      const label = document.querySelector('label[for="' + input.id + '"]');
+      if (label) {
+        const lt = (label.textContent || '').toLowerCase();
+        if (config.labels && config.labels.some(l => lt.includes(l.toLowerCase()))) {
+          return input;
+        }
+      }
+    }
+
     return null;
   }
 
