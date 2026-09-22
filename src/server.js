@@ -17,8 +17,14 @@ const imageService = createImageService();
 const authenticate = authMiddleware(authService);
 
 // ─── Helpers ────────────────────────────────────────────────────────
-function sendJson(res, code, body) {
-  res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' });
+function sendJson(res, code, body, extraHeaders = {}) {
+  res.writeHead(code, {
+    'content-type': 'application/json; charset=utf-8',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    ...extraHeaders
+  });
   res.end(JSON.stringify(body));
 }
 
@@ -38,6 +44,16 @@ function requireAuth(user, perm) {
 
 // ─── Server ─────────────────────────────────────────────────────────
 const server = createServer(async (req, res) => {
+  // ── CORS preflight ───────────────────────────────────────────
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    });
+    return res.end();
+  }
+
   const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
   const method = req.method;
   const path = url.pathname;

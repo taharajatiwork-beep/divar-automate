@@ -1,8 +1,6 @@
-// ─── Content Script v3 — Multi-Step Auto-Fill ────────────────────────
-// Detects Divar ad form, fills fields step by step, clicks "بعدی".
+// ─── Content Script v3.1 — Multi-Step Auto-Fill ──────────────────────
+// Detects Divar ad form, fills ALL visible fields, clicks "بعدی".
 // NEVER clicks "ثبت آگهی" — that's always human.
-//
-// Flow: detect form -> find fields -> fill -> click "بعدی" -> next step -> repeat
 
 (function () {
   'use strict';
@@ -11,12 +9,11 @@
   const log = (...a) => console.log(LOG_PREFIX, ...a);
   const warn = (...a) => console.warn(LOG_PREFIX, ...a);
 
-  let autoFilled = false;
   let currentPrefill = null;
-  let currentStep = 0;
+  let filledKeys = new Set();
 
   // ══════════════════════════════════════════════════════════════════
-  // PREFILL DATA — from API (web panel stores, we read)
+  // PREFILL DATA — from API
   // ══════════════════════════════════════════════════════════════════
   async function fetchPrefillFromAPI() {
     try {
@@ -27,58 +24,55 @@
       });
       const d = await r.json();
       if (d.prefill) {
-        log('prefill از API بازیابی شد:', d.productId);
+        log('prefill از API:', d.productId);
         return d.prefill;
       }
-    } catch (e) { warn('خطا در API:', e); }
+    } catch (e) { warn('API error:', e); }
     return null;
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // FIELD DETECTION — find inputs by label/placeholder text
+  // FIELD DETECTION — by name/placeholder/label
   // ══════════════════════════════════════════════════════════════════
-
-  // Persian keyword map: prefill key -> labels to search
   const FIELD_MAP = {
-    title:       ['عنواین آگهی', 'عنواین', 'title'],
-    description: ['توضیحات آگهی', 'توضیحات', 'description'],
-    price:       ['قیمت', 'مبلغ', 'price'],
-    brand:       ['برند', 'سازنده', 'brand'],
-    model:       ['مدل', 'model'],
-    color:       ['رنگ', 'color'],
-    storage:     ['حافظه', 'storage', 'ظرفیت'],
+    title:       { names: ['Title', 'title'],       labels: ['عنواین آگهی', 'عنواین'], placeholder: ['عنواین', 'title'] },
+    description: { names: ['Description', 'description'], labels: ['توضیحات آگهی', 'توضیحات'], placeholder: ['توضیح', 'description'] },
+    price:       { names: ['Price', 'price'],       labels: ['قیمت', 'مبلغ'], placeholder: ['قیمت', 'price'] },
+    brand:       { names: ['Brand', 'brand'],       labels: ['برند'], placeholder: ['برند'] },
+    model:       { names: ['Model', 'model'],       labels: ['مدل'], placeholder: ['مدل'] },
+    color:       { names: ['Color', 'color'],       labels: ['رنگ'], placeholder: ['رنگ'] },
+    storage:     { names: ['Storage', 'storage'],   labels: ['حافظه', 'ظرفیت'], placeholder: ['حافظه'] },
   };
 
-  function getVisibleInputs() {
-    return [...document.querySelectorAll('input, textarea')]
+  function findFieldByConfig(config) {
+    const inputs = [...document.querySelectorAll('input, textarea, [role="textbox"]')]
       .filter(el => el.offsetParent !== null && el.type !== 'hidden' && el.type !== 'submit');
-  }
 
-  function findFieldByLabel(keywords) {
-    const inputs = getVisibleInputs();
     for (const input of inputs) {
-      // Strategy 1: aria-label
-      const ariaLabel = (input.getAttribute('aria-label') || '').toLowerCase();
-      for (const kw of keywords) {
-        if (ariaLabel.includes(kw.toLowerCase())) return input;
+      // Strategy 1: name attribute (most reliable!)
+      const name = input.name || '';
+      if (config.names.some(n => name.toLowerCase() === n.toLowerCase())) {
+        return input;
       }
+
       // Strategy 2: placeholder
       const ph = (input.placeholder || '').toLowerCase();
-      for (const kw of keywords) {
-        if (ph.includes(kw.toLowerCase())) return input;
+      if (config.placeholder.some(p => ph.includes(p.toLowerCase()))) {
+        return input;
       }
-      // Strategy 3: name/id attributes
-      const name = (input.name || '').toLowerCase();
-      const id = (input.id || '').toLowerCase();
-      for (const kw of keywords) {
-        if (name.includes(kw.toLowerCase()) || id.includes(kw.toLowerCase())) return input;
+
+      // Strategy 3: aria-label
+      const aria = (input.getAttribute('aria-label') || '').toLowerCase();
+      if (config.labels.some(l => aria.includes(l.toLowerCase()))) {
+        return input;
       }
-      // Strategy 4: nearby label text (up to 5 parent levels)
+
+      // Strategy 4: parent text
       let parent = input.parentElement;
-      for (let depth = 0; depth < 5 && parent; depth++) {
+      for (let depth = 0; depth < 4 && parent; depth++) {
         const text = (parent.textContent || '').toLowerCase();
-        for (const kw of keywords) {
-          if (text.includes(kw.toLowerCase())) return input;
+        if (config.labels.some(l => text.includes(l.toLowerCase()))) {
+          return input;
         }
         parent = parent.parentElement;
       }
@@ -88,40 +82,40 @@
 
   function findFormFields() {
     const fields = {};
-    for (const [key, keywords] of Object.entries(FIELD_MAP)) {
-      const el = findFieldByLabel(keywords);
+    for (const [key, config] of Object.entries(FIELD_MAP)) {
+      const el = findFieldByConfig(config);
       if (el) {
         fields[key] = el;
-        log('فیلد پیدا شد:', key, el.tagName,
-          '(' + (el.name || el.id || el.placeholder || 'unnamed') + ')');
       }
     }
     return fields;
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // FILL FIELD — set value in React-compatible way
+  // FILL FIELD — React-compatible
   // ══════════════════════════════════════════════════════════════════
   function setNativeValue(el, value) {
     if (!el || value === undefined || value === null) return false;
     const strValue = String(value);
-    if (el.value === strValue) return false; // already filled
+    if (el.value === strValue) return false;
 
-    // React needs native setter + React events to trigger onChange
+    // React needs native setter
     let setter;
+    if (el.getAttribute('role') === 'textbox') {
+      // contenteditable
+      el.textContent = strValue;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    }
     if (el.tagName === 'TEXTAREA') {
-      setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+      setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
     } else {
-      setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+      setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
     }
+    if (setter) setter.call(el, strValue);
+    else el.value = strValue;
 
-    if (setter) {
-      setter.call(el, strValue);
-    } else {
-      el.value = strValue;
-    }
-
-    // Focus first, then set, then trigger events
     el.focus();
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -130,29 +124,24 @@
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // CLICK "بعدی" BUTTON
+  // CLICK "بعدی" (NEXT) — NOT "ثبت" (SUBMIT)
   // ══════════════════════════════════════════════════════════════════
   function clickNextButton() {
-    const buttons = [...document.querySelectorAll('button')];
-    for (const btn of buttons) {
+    for (const btn of document.querySelectorAll('button')) {
       const text = (btn.textContent || '').trim();
-      if (text === 'بعدی' || text.includes('بعدی')) {
-        if (btn.offsetParent !== null && !btn.disabled) {
-          log('کلیک روی "بعدی":', btn.textContent.trim());
-          btn.click();
-          return true;
-        }
+      if (text.includes('بعدی') && btn.offsetParent !== null && !btn.disabled) {
+        log('clicking "بعدی":', text);
+        btn.click();
+        return true;
       }
     }
     return false;
   }
 
-  // Check if we're on the final step (submit button visible)
   function isSubmitStep() {
-    const buttons = [...document.querySelectorAll('button')];
-    for (const btn of buttons) {
+    for (const btn of document.querySelectorAll('button')) {
       const text = (btn.textContent || '').trim();
-      if ((text.includes('ثبت آگهی') || text.includes('ثبت نهایی') || text.includes('ارسال')) && btn.offsetParent !== null) {
+      if ((text.includes('ثبت آگهی') || text.includes('ارسال')) && btn.offsetParent !== null) {
         return true;
       }
     }
@@ -160,105 +149,119 @@
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // AUTO-FILL CURRENT STEP
+  // POLLING FILL — keep trying to fill unfilled fields
   // ══════════════════════════════════════════════════════════════════
-  function fillCurrentStep() {
-    if (!currentPrefill) return false;
-
+  function fillAllVisibleFields() {
+    if (!currentPrefill) return;
     const fields = findFormFields();
-    const fieldKeys = Object.keys(fields);
-    if (fieldKeys.length === 0) return false;
-
-    let filledSomething = false;
+    let newlyFilled = 0;
 
     for (const [key, el] of Object.entries(fields)) {
+      if (filledKeys.has(key)) continue; // already filled
       const value = currentPrefill[key];
-      if (value !== undefined && value !== null && value !== '') {
-        if (setNativeValue(el, value)) {
-          log('✅ پر شد:', key, '=', String(value).substring(0, 50));
-          filledSomething = true;
-        }
+      if (value === undefined || value === null || value === '') continue;
+
+      if (setNativeValue(el, value)) {
+        filledKeys.add(key);
+        newlyFilled++;
+        log('✅', key, '=', String(value).substring(0, 40));
+        highlightField(el);
       }
     }
 
-    return filledSomething;
+    return newlyFilled;
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // MULTI-STEP ORCHESTRATOR
+  // ORCHESTRATE — poll, fill, then click next
   // ══════════════════════════════════════════════════════════════════
   async function orchestrate() {
-    if (autoFilled || !currentPrefill) return;
+    if (!currentPrefill) return;
 
-    // Wait for form to appear (up to 15 seconds)
-    const fields = await new Promise(resolve => {
-      let attempts = 0;
-      const check = () => {
-        const f = findFormFields();
-        if (Object.keys(f).length > 0 || attempts > 30) resolve(f);
-        else { attempts++; setTimeout(check, 500); }
-      };
-      check();
-    });
+    const MAX_WAIT = 30000; // 30 seconds
+    const INTERVAL = 1000;  // check every 1s
+    const startTime = Date.now();
 
-    if (Object.keys(fields).length === 0) {
-      warn('فرم پیدا نشد — منتظر بارگذاری...');
-      return;
+    // Phase 1: keep polling until at least one field is found
+    while (Date.now() - startTime < MAX_WAIT) {
+      const count = fillAllVisibleFields();
+      if (count > 0) {
+        log('fill cycle: +' + count + ' fields');
+        break;
+      }
+      await new Promise(r => setTimeout(r, INTERVAL));
     }
 
-    log('مرحله', currentStep + 1, ':', Object.keys(fields).length, 'فیلد پیدا شد');
+    // Phase 2: keep polling for more fields (textarea might load later)
+    let lastFillCount = filledKeys.size;
+    let stableCount = 0;
+    while (stableCount < 3 && Date.now() - startTime < MAX_WAIT) {
+      await new Promise(r => setTimeout(r, 1000));
+      fillAllVisibleFields();
+      if (filledKeys.size === lastFillCount) {
+        stableCount++;
+      } else {
+        stableCount = 0;
+        lastFillCount = filledKeys.size;
+        log('new fields filled, total:', filledKeys.size);
+      }
+    }
 
-    // Fill fields
-    const filled = fillCurrentStep();
+    // Phase 3: all available fields filled — show result
+    const allFields = findFormFields();
+    const totalAvailable = Object.keys(allFields).length;
 
-    if (filled) {
-      currentStep++;
-      showIndicator('✅ فیلدها پر شدنح — مرحله ' + currentStep);
+    if (filledKeys.size > 0) {
+      showIndicator(
+        '✅ ' + filledKeys.size + '/' + totalAvailable + ' فیلد پر شد' +
+        '
+دکمه "بعدی" رو بزن ✋'
+      );
 
-      // Auto-click "بعدی" after a short delay
+      // Auto-click next
       setTimeout(() => {
         if (!isSubmitStep()) {
-          const clicked = clickNextButton();
-          if (clicked) {
-            log('مرحله بعدی...');
-            // Wait for next step to load, then fill
-            setTimeout(() => orchestrate(), 2000);
-          } else {
-            log('دکمه "بعدی" پیدا نشد — احتمالاً مرحله آخره');
-            showIndicator('✅ فرم پر شد! دکمه ثبت رو بزن ✋');
+          if (clickNextButton()) {
+            log('next step clicked, waiting for page...');
+            // Reset filledKeys and re-orchestrate for next step
+            filledKeys.clear();
+            setTimeout(() => orchestrate(), 3000);
           }
         } else {
-          log('مرحله ثبت نهایی — دست نزن!');
           showIndicator('✅ فرم پر شد! دکمه ثبت رو بزن ✋');
         }
-      }, 800);
+      }, 1000);
     } else {
-      showIndicator('⏳ منتظر فیلدها...');
+      showIndicator('⏳ فرم پیدا نشد');
     }
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // FLOATING INDICATOR
+  // VISUAL FEEDBACK
   // ══════════════════════════════════════════════════════════════════
-  let indicatorEl = null;
+  function highlightField(el) {
+    el.style.transition = 'box-shadow 0.3s';
+    el.style.boxShadow = '0 0 0 2px #22c55e, 0 0 12px rgba(34,197,94,0.3)';
+    setTimeout(() => { el.style.boxShadow = ''; }, 3000);
+  }
 
+  let indicatorEl = null;
   function showIndicator(text) {
     if (!indicatorEl) {
       indicatorEl = document.createElement('div');
-      indicatorEl.id = 'divar-assistant-indicator';
+      indicatorEl.id = 'divar-assistant';
       Object.assign(indicatorEl.style, {
         position: 'fixed', bottom: '20px', left: '20px', zIndex: '999999',
         background: 'linear-gradient(135deg, #1e40af, #7c3aed)',
         color: 'white', padding: '12px 20px', borderRadius: '12px',
-        fontSize: '14px', fontFamily: 'Vazirmatn, system-ui, sans-serif',
+        fontSize: '14px', fontFamily: 'Vazirmatn, system-ui',
         boxShadow: '0 4px 20px rgba(0,0,0,0.3)', direction: 'rtl',
-        cursor: 'pointer', transition: 'all 0.3s',
-        maxWidth: '350px', lineHeight: '1.6'
+        cursor: 'pointer', whiteSpace: 'pre-line', lineHeight: '1.8'
       });
       indicatorEl.addEventListener('click', () => indicatorEl.remove());
       document.body.appendChild(indicatorEl);
     }
-    indicatorEl.innerHTML = '<div style="font-weight:bold;margin-bottom:4px;">📢 دستیار آگهی دیوار</div><div>' + text + '</div>';
+    indicatorEl.innerHTML = '<div style="font-weight:bold;margin-bottom:4px">📢 دستیار آگهی</div>' + text;
   }
 
   function removeIndicator() {
@@ -271,11 +274,7 @@
   // ══════════════════════════════════════════════════════════════════
   function isAdFormPage() {
     const url = window.location.href;
-    return url.includes('divar.ir') && (
-      url.includes('/new') ||
-      url.includes('/create') ||
-      url.includes('/submit')
-    );
+    return url.includes('divar.ir') && (url.includes('/new') || url.includes('/create') || url.includes('/submit'));
   }
 
   // ══════════════════════════════════════════════════════════════════
@@ -284,9 +283,7 @@
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.action === 'fillReady' && msg.prefill) {
       currentPrefill = msg.prefill;
-      autoFilled = false;
-      currentStep = 0;
-      log('پریفیل دریافت شد از background');
+      filledKeys.clear();
       orchestrate();
     }
     sendResponse({ ok: true });
@@ -297,9 +294,9 @@
   // ══════════════════════════════════════════════════════════════════
   async function init() {
     if (!isAdFormPage()) return;
-    log('صفحه فرم آگهی شناسایی شد:', location.href);
+    log('form page detected:', location.href);
 
-    // Try API first (from web panel)
+    // Try API first
     const prefill = await fetchPrefillFromAPI();
     if (prefill) {
       currentPrefill = prefill;
@@ -307,7 +304,7 @@
       return;
     }
 
-    // Try background state
+    // Fallback: background
     chrome.runtime.sendMessage({ action: 'getStatus' }, (response) => {
       if (response?.success && response.prefill) {
         currentPrefill = response.prefill;
@@ -322,9 +319,7 @@
     if (location.href !== lastUrl) {
       lastUrl = location.href;
       if (isAdFormPage()) {
-        autoFilled = false;
-        currentStep = 0;
-        log('نابوری SPA — شروع مجدد...');
+        filledKeys.clear();
         init();
       } else {
         removeIndicator();
@@ -332,6 +327,5 @@
     }
   });
   observer.observe(document.body, { childList: true, subtree: true });
-
   init();
 })();
