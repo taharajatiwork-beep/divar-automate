@@ -1,69 +1,65 @@
 [
   {
     "id": "P001",
-    "title": "پژو ۲۰۶ تیپ ۵",
+    "title": "پژو 206 تیپ ۵",
     "description": "خودروی سالم و بدون تصادف. موتور و گیربکس سالم. بیمه شخص ثالث تا پایان سال. لاستیک‌ها نو.",
     "price": 280000000,
     "category": "vehicles",
     "attributes": {
       "brand": "پژو",
-      "model": "206 تیپ 5",
+      "model": "پژو 206 تیپ ۵",
       "year": "1398",
-      "mileage": "85,000 کیلومتر",
+      "mileage": "85,000",
       "color": "سفید",
-      "gearbox": "دنده دستی"
+      "gearbox": "دنده‌ای",
+      "fuel": "بنزین",
+      "bodyStatus": "سالم و بی‌خط و خش"
     },
-    "images": [
-      "/images/P001_01.jpg"
-    ],
+    "images": ["/images/P001_01.jpg"],
     "city": "تهران",
     "createdAt": "2026-09-22T12:22:35.994Z",
     "updatedAt": "2026-09-22T12:22:35.994Z",
-    "status": "locked",
-    "locked_by": "op-ali",
-    "locked_at": "2026-09-23T06:17:45.095Z"
+    "status": "active"
   },
   {
     "id": "P002",
-    "title": "پژو ۲۰۷ اتوماتیک",
+    "title": "پژو 207i اتوماتیک",
     "description": "خودرو کارکرده و تمیز. صندلی چرمی. مانیتور و دوربین عقب. بدون رنگ و تصادف.",
     "price": 450000000,
     "category": "vehicles",
     "attributes": {
       "brand": "پژو",
-      "model": "207 اتوماتیک",
+      "model": "پژو 207i اتوماتیک",
       "year": "1401",
-      "mileage": "42,000 کیلومتر",
+      "mileage": "42,000",
       "color": "مشکی",
-      "gearbox": "اتوماتیک"
+      "gearbox": "اتوماتیک",
+      "fuel": "بنزین",
+      "bodyStatus": "سالم و بی‌خط و خش"
     },
-    "images": [
-      "/images/P002_01.jpg"
-    ],
-    "city": "اصفهان",
+    "images": ["/images/P002_01.jpg"],
+    "city": "تهران",
     "createdAt": "2026-09-22T12:22:35.994Z",
     "updatedAt": "2026-09-22T12:22:35.994Z",
-    "status": "active",
-    "locked_by": null,
-    "locked_at": null
+    "status": "active"
   },
   {
     "id": "P003",
-    "title": "سمند EF7",
-    "description": "خودروی اقتصادی و کم‌مصرف. موتور EF7 سالم. رنگ فابریکی. یک مالک.",
-    "price": 220000000,
+    "title": "پژو 405 GLX",
+    "description": "خودروی اقتصادی و کم‌مصرف. موتور سالم. رنگ فابریکی. یک مالک.",
+    "price": 180000000,
     "category": "vehicles",
     "attributes": {
-      "brand": "ایران خودرو",
-      "model": "سمند EF7",
+      "brand": "پژو",
+      "model": "پژو 405 GLX بنزینی",
       "year": "1397",
-      "mileage": "110,000 کیلومتر",
+      "mileage": "110,000",
       "color": "نقره‌ای",
-      "gearbox": "دنده دستی"
+      "gearbox": "دنده‌ای",
+      "fuel": "بنزین",
+      "bodyStatus": "سالم و بی‌خط و خش"
     },
-    "images": [
-      "/images/P003_01.jpg"
-    ],
+    "images": ["/images/P003_01.jpg"],
     "city": "تهران",
     "createdAt": "2026-09-22T12:22:35.994Z",
     "updatedAt": "2026-09-22T12:22:35.994Z",
@@ -71,21 +67,21 @@
   },
   {
     "id": "P004",
-    "title": "تیبا ۲",
+    "title": "کیا ریو سدان",
     "description": "خودرو سالم و تمیز. مناسب شهری. مصرف سوخت پایین. بیمه و معاینه فنی به‌روز.",
-    "price": 180000000,
+    "price": 250000000,
     "category": "vehicles",
     "attributes": {
-      "brand": "سایپا",
-      "model": "تیبا 2",
+      "brand": "کیا",
+      "model": "کیا ریو سدان",
       "year": "1399",
-      "mileage": "65,000 کیلومتر",
+      "mileage": "65,000",
       "color": "قرمز",
-      "gearbox": "دنده دستی"
+      "gearbox": "دنده‌ای",
+      "fuel": "بنزین",
+      "bodyStatus": "سالم و بی‌خط و خش"
     },
-    "images": [
-      "/images/P004_01.jpg"
-    ],
+    "images": ["/images/P004_01.jpg"],
     "city": "شیراز",
     "createdAt": "2026-09-22T12:22:35.994Z",
     "updatedAt": "2026-09-22T12:22:35.994Z",
@@ -93,45 +89,43 @@
   },
   {
     "id": "P005",
-    "title": "کیام سراتو",
+    "title": "کیا سراتو اتوماتیک 2000cc",
     "description": "خودرو کره‌ای با کیفیت بالا. موتور قدرتمند و گیربکس اتوماتیک روان. صندلی‌های چرمی.",
     "price": 520000000,
     "category": "vehicles",
     "attributes": {
       "brand": "کیا",
-      "model": "سراتو",
+      "model": "کیا سراتو اتوماتیک 2000cc",
       "year": "1396",
-      "mileage": "95,000 کیلومتر",
+      "mileage": "95,000",
       "color": "خاکستری",
-      "gearbox": "اتوماتیک"
+      "gearbox": "اتوماتیک",
+      "fuel": "بنزین",
+      "bodyStatus": "سالم و بی‌خط و خش"
     },
-    "images": [
-      "/images/P005_01.jpg"
-    ],
+    "images": ["/images/P005_01.jpg"],
     "city": "تهران",
     "createdAt": "2026-09-22T12:22:35.994Z",
     "updatedAt": "2026-09-22T12:22:35.994Z",
-    "status": "active",
-    "locked_by": null,
-    "locked_at": null
+    "status": "active"
   },
   {
     "id": "P006",
-    "title": "تویوتا کمری",
-    "description": "خودرو لاکچری وارداتی. موتور ۲.۵ لیتری. سیستم ایمنی کامل. وضعیت فنی عالی.",
-    "price": 1200000000,
+    "title": "هیوندای النترا 1800cc",
+    "description": "خودرو وارداتی سالم و بدون تصادف. فرمان برقی. مانیتور. دوربین ۳۶۰ درجه.",
+    "price": 850000000,
     "category": "vehicles",
     "attributes": {
-      "brand": "تویوتا",
-      "model": "کمری",
+      "brand": "هیوندای",
+      "model": "هیوندای النترا 1800cc",
       "year": "1400",
-      "mileage": "30,000 کیلومتر",
+      "mileage": "30,000",
       "color": "سفید",
-      "gearbox": "اتوماتیک"
+      "gearbox": "اتوماتیک",
+      "fuel": "بنزین",
+      "bodyStatus": "سالم و بی‌خط و خش"
     },
-    "images": [
-      "/images/P006_01.jpg"
-    ],
+    "images": ["/images/P006_01.jpg"],
     "city": "تهران",
     "createdAt": "2026-09-22T12:22:35.994Z",
     "updatedAt": "2026-09-22T12:22:35.994Z",
@@ -139,69 +133,65 @@
   },
   {
     "id": "P007",
-    "title": "هیوندای النترا",
-    "description": "خودرو وارداتی سالم و بدون تصادف. فرمان برقی. مانیتور. دوربین ۳۶۰ درجه.",
-    "price": 850000000,
+    "title": "هیوندای i40",
+    "description": "خودرو وارداتی لاکچری. موتور قوی. سیستم ایمنی کامل. وضعیت فنی عالی.",
+    "price": 900000000,
     "category": "vehicles",
     "attributes": {
       "brand": "هیوندای",
-      "model": "النترا",
+      "model": "هیوندای i40",
       "year": "1398",
-      "mileage": "58,000 کیلومتر",
+      "mileage": "58,000",
       "color": "آبی تیره",
-      "gearbox": "اتوماتیک"
+      "gearbox": "اتوماتیک",
+      "fuel": "بنزین",
+      "bodyStatus": "سالم و بی‌خط و خش"
     },
-    "images": [
-      "/images/P007_01.jpg"
-    ],
+    "images": ["/images/P007_01.jpg"],
     "city": "تبریز",
     "createdAt": "2026-09-22T12:22:35.994Z",
     "updatedAt": "2026-09-22T12:22:35.994Z",
-    "status": "active",
-    "locked_by": null,
-    "locked_at": null
+    "status": "active"
   },
   {
     "id": "P008",
-    "title": "پراید ۱۳۲",
-    "description": "خودرو اقتصادی سالم. موتور و گیربکس بی‌نقص. مناسب استفاده شهری. مصرف سوخت پایین.",
-    "price": 120000000,
-    "category": "vehicles",
-    "attributes": {
-      "brand": "سایپا",
-      "model": "پراید 132",
-      "year": "1395",
-      "mileage": "150,000 کیلومتر",
-      "color": "سفید",
-      "gearbox": "دنده دستی"
-    },
-    "images": [
-      "/images/P008_01.jpg"
-    ],
-    "city": "کرمان",
-    "createdAt": "2026-09-22T12:22:35.994Z",
-    "updatedAt": "2026-09-22T12:22:35.994Z",
-    "status": "active",
-    "locked_by": null,
-    "locked_at": null
-  },
-  {
-    "id": "P009",
-    "title": "رانا",
-    "description": "خودرو ملی ایران خودرو. موتور TU5. وضعیت فنی خوب. بدون رنگ شدگی.",
-    "price": 250000000,
+    "title": "دنا پلاس اتوماتیک",
+    "description": "خودرو جدید و تمیز. موتور توربو. فرمان برقی. مانیتور. دوربین عقب.",
+    "price": 450000000,
     "category": "vehicles",
     "attributes": {
       "brand": "ایران خودرو",
-      "model": "رانا",
-      "year": "1400",
-      "mileage": "38,000 کیلومتر",
-      "color": "سرمه‌ای",
-      "gearbox": "دنده دستی"
+      "model": "دنا پلاس اتوماتیک",
+      "year": "1401",
+      "mileage": "45,000",
+      "color": "سفید",
+      "gearbox": "اتوماتیک",
+      "fuel": "بنزین",
+      "bodyStatus": "سالم و بی‌خط و خش"
     },
-    "images": [
-      "/images/P009_01.jpg"
-    ],
+    "images": ["/images/P008_01.jpg"],
+    "city": "کرمان",
+    "createdAt": "2026-09-22T12:22:35.994Z",
+    "updatedAt": "2026-09-22T12:22:35.994Z",
+    "status": "active"
+  },
+  {
+    "id": "P009",
+    "title": "رانا LX",
+    "description": "خودرو ملی ایران خودرو. موتور TU5. وضعیت فنی خوب. بدون رنگ شدگی.",
+    "price": 220000000,
+    "category": "vehicles",
+    "attributes": {
+      "brand": "ایران خودرو",
+      "model": "رانا LX",
+      "year": "1400",
+      "mileage": "38,000",
+      "color": "سرمه‌ای",
+      "gearbox": "دنده‌ای",
+      "fuel": "بنزین",
+      "bodyStatus": "سالم و بی‌خط و خش"
+    },
+    "images": ["/images/P009_01.jpg"],
     "city": "اصفهان",
     "createdAt": "2026-09-22T12:22:35.994Z",
     "updatedAt": "2026-09-22T12:22:35.994Z",
@@ -209,26 +199,24 @@
   },
   {
     "id": "P010",
-    "title": "دنا پلاس",
+    "title": "دنا پلاس 6 دنده توربو",
     "description": "خودرو جدید ایران خودرو. موتور EF7 توربو. فرمان برقی. مانیتور. دوربین عقب.",
     "price": 380000000,
     "category": "vehicles",
     "attributes": {
       "brand": "ایران خودرو",
-      "model": "دنا پلاس",
+      "model": "دنا پلاس 6 دنده توربو",
       "year": "1402",
-      "mileage": "12,000 کیلومتر",
+      "mileage": "12,000",
       "color": "مشکی",
-      "gearbox": "دنده دستی"
+      "gearbox": "دنده‌ای",
+      "fuel": "بنزین",
+      "bodyStatus": "سالم و بی‌خط و خش"
     },
-    "images": [
-      "/images/P010_01.jpg"
-    ],
+    "images": ["/images/P010_01.jpg"],
     "city": "تهران",
     "createdAt": "2026-09-22T12:22:35.994Z",
     "updatedAt": "2026-09-22T12:22:35.994Z",
-    "status": "active",
-    "locked_by": null,
-    "locked_at": null
+    "status": "active"
   }
 ]

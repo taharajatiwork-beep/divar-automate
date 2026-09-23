@@ -127,19 +127,13 @@
     if (!optionText) return false;
     labelText = labelText || fieldId;
 
-    // Find trigger button - Divar car fields use #fieldId___Input or #fieldId button
+    // Find trigger button
     const trigger = document.querySelector('#' + CSS.escape(fieldId) + '___Input') ||
       document.querySelector('#' + CSS.escape(fieldId) + ' button');
-    if (!trigger) {
-      warn('field control not found:', fieldId);
-      return false;
-    }
+    if (!trigger) { warn('field not found:', fieldId); return false; }
 
     const before = (trigger.innerText || '').trim();
-    const wanted = normalizeOption(optionText);
-
-    // If already selected, skip
-    if (normalizeOption(before) === wanted && before !== 'انتخاب') {
+    if (normalizeOption(before) === normalizeOption(optionText) && before !== 'انتخاب') {
       log('✅ already set:', fieldId, '=', before);
       return true;
     }
@@ -147,118 +141,93 @@
     trigger.click();
     await sleep(700);
 
-    // Verify modal opened
     if (trigger.getAttribute('aria-expanded') !== 'true') {
       warn('field did not open:', fieldId);
       return false;
     }
 
-    // Find the single-select-modal (Divar renders options in this portal modal)
     const modal = document.querySelector('.single-select-modal.kt-modal');
-    if (!modal) {
-      warn('single-select-modal not found for:', fieldId);
-      trigger.click(); // close
-      return false;
-    }
+    if (!modal) { warn('modal not found:', fieldId); trigger.click(); return false; }
 
-    // Step 1: Check if match exists in visible suggestions FIRST
+    // Get all option rows
     const rows = modal.querySelectorAll('.kt-base-row');
-    for (const row of rows) {
-      const t = row.querySelector('.start__title-_UBPtX, p');
-      const txt = (t?.textContent || row.textContent || '').trim();
-      const ntxt = n(txt);
-      if (ntxt.includes(wanted) || wanted.includes(ntxt) || ntxt.includes(n(optionText.split(/s+/)[0]))) {
-        matched = row;
-        log('found in suggestions:', txt);
-        break;
-      }
-    }
-    
-    // Only if no match in suggestions, click 'show all' and search
-    if (!matched) {
-      const showAllEl = modal.querySelector('[role="button"]');
-      if (showAllEl && /همه/.test(showAllEl.textContent)) {
-        showAllEl.click();
-        await sleep(1000);
-      }
-    } else {
-      // Fallback: find any clickable element containing 'show all'
-      const allBtn = [...modal.querySelectorAll('[role="button"], a, button')]
-        .find(e => e.offsetParent && /همه/.test(e.textContent));
-      if (allBtn) { allBtn.click(); await sleep(800); }
-    }
-
-    // Step 2: Type in search box to filter options
-    const searchInput = modal.querySelector('#brand_model-search-input, input[type="text"], input[placeholder*="جستجو"]');
-    if (searchInput) {
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-      const searchTerm = optionText.replace(/d+/g, m => m); // keep numbers
-      if (setter) setter.call(searchInput, searchTerm);
-      else searchInput.value = searchTerm;
-      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-      await sleep(600);
-    }
-
-    // Find matching option row
+    const wanted = normalizeOption(optionText);
+    const brandWord = normalizeOption((optionText.split(/s+/)[0] || ''));
     let matched = null;
 
+    // Pass 1: exact/fuzzy match on full text
     for (const row of rows) {
-      const titleEl = row.querySelector('.start__title-_UBPtX, p');
-      const rowText = (titleEl?.textContent || row.textContent || '').trim();
-      if (n(rowText).includes(wanted) || wanted.includes(n(rowText))) {
-        matched = row;
-        break;
+      const t = row.querySelector('.start__title-_UBPtX, p');
+      const txt = normalizeOption(t?.textContent || row.textContent || '');
+      if (txt.includes(wanted) || wanted.includes(txt)) {
+        matched = row; log('match:', t?.textContent?.trim()); break;
       }
     }
 
+    // Pass 2: brand-only match (e.g. 'تویوتا' matches 'تویوتa Camry...')
+    if (!matched && brandWord.length > 2) {
+      for (const row of rows) {
+        const t = row.querySelector('.start__title-_UBPtX, p');
+        const txt = normalizeOption(t?.textContent || row.textContent || '');
+        if (txt.includes(brandWord)) {
+          matched = row; log('brand match:', t?.textContent?.trim()); break;
+        }
+      }
+    }
+
+    // Pass 3: click 'show all' then search
     if (!matched) {
-      // Fallback: try brand-only match (e.g. 'پژو' from 'پژو 207 اتوماتیک')
-      const brandOnly = optionText.split(/s+/)[0];
-      if (brandOnly && brandOnly.length > 2) {
-        for (const row of rows) {
+      const showAll = modal.querySelector('[role="button"]');
+      if (showAll && /همه/.test(showAll.textContent)) {
+        showAll.click(); await sleep(1000);
+        // Search
+        const inp = modal.querySelector('input[type="text"], input[placeholder]');
+        if (inp) {
+          const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+          if (set) set.call(inp, optionText); else inp.value = optionText;
+          inp.dispatchEvent(new Event('input', { bubbles: true }));
+          await sleep(600);
+        }
+        // Re-check rows after search
+        const newRows = modal.querySelectorAll('.kt-base-row');
+        for (const row of newRows) {
           const t = row.querySelector('.start__title-_UBPtX, p');
-          const txt = (t?.textContent || row.textContent || '').trim();
-          if (n(txt).includes(n(brandOnly))) {
-            matched = row;
-            log('brand-only fallback:', brandOnly, '->', txt);
-            break;
+          const txt = normalizeOption(t?.textContent || row.textContent || '');
+          if (txt.includes(wanted) || wanted.includes(txt) || txt.includes(brandWord)) {
+            matched = row; log('search match:', t?.textContent?.trim()); break;
           }
         }
       }
     }
-    if (!matched) {
-      warn('option not found:', fieldId, optionText);
-      trigger.click();
-      return false;
-    }
 
-    // Click the matched row with full pointer events for React
+    if (!matched) { warn('option not found:', fieldId, optionText); trigger.click(); return false; }
+
+    // Click with pointer events for React
     matched.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     matched.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
     matched.click();
     await sleep(700);
 
-    // Verify the selection was committed - trigger text must change
+    // Verify commit
     const after = (trigger.innerText || '').trim();
-    const committed = normalizeOption(after) === wanted && after !== before;
-    if (!committed) {
-      warn('selection was not committed:', fieldId, { before, after, wanted: optionText });
-      return false;
+    if (normalizeOption(after) !== normalizeOption(before) && after !== 'انتخاب') {
+      log('✅ committed:', fieldId, '=', after); return true;
     }
-
-    log('✅ committed:', fieldId, '=', after);
-    return true;
+    // Retry once
+    matched.click();
+    await sleep(500);
+    const retry = (trigger.innerText || '').trim();
+    if (retry !== before && retry !== 'انتخاب') {
+      log('✅ committed (retry):', fieldId, '=', retry); return true;
+    }
+    warn('commit failed:', fieldId, 'still:', retry);
+    trigger.click(); return false;
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  // FILL ALL FIELDS — text + select + description
-  // ══════════════════════════════════════════════════════════════════
   async function fillFields() {
     if (!currentPrefill) return 0;
     const pf = currentPrefill;
     let filled = 0;
-
-    // 1. Title
     if (!filledKeys.has('title')) {
       const el = findTextField('title');
       if (el && setTextValue(el, pf.title)) {
@@ -291,7 +260,7 @@
 
         // Wait for select buttons to appear (lazy-loaded)
     for (let w = 0; w < 15; w++) {
-      if (document.querySelector("button[name=year]")) break;
+      if (document.querySelector("#year___Input")) break;
       await new Promise(r => setTimeout(r, 500));
     }
 
@@ -306,7 +275,7 @@
     ];
 
     // Brand/model: find by label text in kt-action-field (different component)
-    const brandVal = pf.brand && pf.model ? pf.brand + ' ' + pf.model : pf.brand;
+    const brandVal = pf.model || pf.brand;
     if (brandVal && !filledKeys.has('brand')) {
       try {
         const ok = await clickDivarDropdownByName('brand_model', String(brandVal), 'برند و مدل');
@@ -480,13 +449,7 @@
       } catch (e) { warn('brand error:', e.message); }
     }
 
-    // Location (مکان آگهی) - select dropdown
-    if (pf.city) {
-      try {
-        const ok = await clickDivarDropdownByName('city', String(pf.city), 'مکان آگهی');
-        if (ok) selectFilled++;
-      } catch (e) { warn('city error:', e.message); }
-    }
+    
 
     // Mileage (usage) is a text INPUT with id #usage___Input
     const usageEl = document.querySelector('#usage___Input');
