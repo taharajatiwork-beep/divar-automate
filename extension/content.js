@@ -161,22 +161,47 @@
       return false;
     }
 
+    // Type in search box to filter options
+    const searchInput = modal.querySelector('input[type="text"], input[type="search"], input:not([type])');
+    if (searchInput) {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      if (setter) setter.call(searchInput, optionText);
+      else searchInput.value = optionText;
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+      await sleep(600);
+    }
+
     // Find matching option row
-    const rows = modal.querySelectorAll('.kt-base-row');
+    const rows = modal.querySelectorAll(".kt-base-row");
     let matched = null;
 
     for (const row of rows) {
       const titleEl = row.querySelector('.start__title-_UBPtX, p');
       const rowText = (titleEl?.textContent || row.textContent || '').trim();
-      if (normalizeOption(rowText) === wanted) {
+      if (n(rowText).includes(wanted) || wanted.includes(n(rowText))) {
         matched = row;
         break;
       }
     }
 
     if (!matched) {
+      // Fallback: try brand-only match (e.g. 'پژو' from 'پژو 207 اتوماتیک')
+      const brandOnly = optionText.split(/s+/)[0];
+      if (brandOnly && brandOnly.length > 2) {
+        for (const row of rows) {
+          const t = row.querySelector('.start__title-_UBPtX, p');
+          const txt = (t?.textContent || row.textContent || '').trim();
+          if (n(txt).includes(n(brandOnly))) {
+            matched = row;
+            log('brand-only fallback:', brandOnly, '->', txt);
+            break;
+          }
+        }
+      }
+    }
+    if (!matched) {
       warn('option not found:', fieldId, optionText);
-      trigger.click(); // close modal
+      trigger.click();
       return false;
     }
 
