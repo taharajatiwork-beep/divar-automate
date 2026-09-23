@@ -393,8 +393,16 @@
 
     await sleep(800);
 
-    // Fill all select dropdowns (id-based, verified by committed text change)
+    // City (مکان آگهی) - on page 2, before other selects
     let selectFilled = 0;
+    if (pf.city) {
+      try {
+        const ok = await clickDivarDropdownByName('city', String(pf.city));
+        if (ok) selectFilled++;
+      } catch (e) { warn('city error:', e.message); }
+    }
+
+    // Fill all select dropdowns (id-based, verified by committed text change)
     const selects = [
       { fieldId: 'fuel_type', value: pf.fuel || 'بنزین' },
       { fieldId: 'year',      value: pf.year },
@@ -415,7 +423,7 @@
     const brandVal = pf.brand && pf.model ? pf.brand + ' ' + pf.model : pf.brand;
     if (brandVal) {
       try {
-        const ok = await clickDivarDropdownByName('brand_model___Input', String(brandVal), 'برند و مدل');
+        const ok = await clickDivarDropdownByName('brand_model', String(brandVal), 'برند و مدل');
         if (ok) selectFilled++;
       } catch (e) { warn('brand error:', e.message); }
     }
