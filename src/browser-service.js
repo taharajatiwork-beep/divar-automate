@@ -152,27 +152,10 @@ class BrowserService {
     return this;
   }
 
-  // Ensure we're using a page that's NOT localhost:5174
+  // Always create a NEW tab for automation — never touch web app tabs
   async _acquirePage() {
-    const pages = await this._browser.pages();
-    // Prefer a divar page, or the first non-localhost page
-    for (const p of pages) {
-      const url = p.url();
-      if (url.includes('divar.ir') && !url.includes('localhost')) {
-        this._page = p;
-        return;
-      }
-    }
-    // Use first page that's not our web app
-    for (const p of pages) {
-      const url = p.url();
-      if (!url.includes('localhost:5174') && !url.startsWith('chrome://')) {
-        this._page = p;
-        return;
-      }
-    }
-    // Fallback: create new page
-    this._page = pages[0] || await this._browser.newPage();
+    this._page = await this._browser.newPage();
+    console.log('[browser] created new automation tab');
   }
 
   // ── Health check: ping Chrome every 10s ──────────────────────
@@ -238,6 +221,29 @@ class BrowserService {
     return this._page;
   }
 
+  // Re-acquire page reference after navigation (fixes detached frame)
+  async reacquirePage() {
+    if (!this._browser) throw new Error('Browser not connected.');
+    const pages = await this._browser.pages();
+    // Find our automation tab (the one with divar in URL, or the newest)
+    for (const p of pages) {
+      if (p.url().includes('divar.ir') && !p.url().includes('localhost')) {
+        this._page = p;
+        return p;
+      }
+    }
+    // Use last non-localhost page
+    for (const p of pages.reverse()) {
+      if (!p.url().includes('localhost:5174') && !p.url().startsWith('chrome://')) {
+        this._page = p;
+        return p;
+      }
+    }
+    // Fallback: last page
+    this._page = pages[pages.length - 1] || this._page;
+    return this._page;
+  }
+
   // ── Actions ──────────────────────────────────────────────────
   async navigate(url) {
     const page = this.getPage();
@@ -246,7 +252,9 @@ class BrowserService {
       console.log('[browser] navigation timeout — continuing');
     });
     await sleep(1000);
-    return { url: page.url() };
+    // Re-acquire page reference (navigation may have changed the frame)
+    try { await this.reacquirePage(); } catch {}
+    return { url: this._page?.url?.() || page.url() };
   }
 
   async openAdForm() {

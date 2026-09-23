@@ -99,7 +99,9 @@
     "city": "شیراز",
     "createdAt": "2026-09-22T12:22:35.994Z",
     "updatedAt": "2026-09-22T12:22:35.994Z",
-    "status": "active"
+    "status": "locked",
+    "locked_by": "op-ali",
+    "locked_at": "2026-09-23T11:47:51.999Z"
   },
   {
     "id": "P005",
@@ -197,9 +199,9 @@
     "city": "کرمان",
     "createdAt": "2026-09-22T12:22:35.994Z",
     "updatedAt": "2026-09-22T12:22:35.994Z",
-    "status": "locked",
-    "locked_by": "op-ali",
-    "locked_at": "2026-09-23T11:16:18.610Z"
+    "status": "active",
+    "locked_by": null,
+    "locked_at": null
   },
   {
     "id": "P009",
@@ -247,8 +249,8 @@
     "city": "تهران",
     "createdAt": "2026-09-22T12:22:35.994Z",
     "updatedAt": "2026-09-22T12:22:35.994Z",
-    "status": "locked",
-    "locked_by": "op-ali",
-    "locked_at": "2026-09-23T11:17:51.437Z"
+    "status": "active",
+    "locked_by": null,
+    "locked_at": null
   }
 ]

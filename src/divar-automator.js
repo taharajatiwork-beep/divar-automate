@@ -61,10 +61,17 @@ class DivarAutomator {
 
   // ── Navigate to fresh ad form (cleanup) ─────────────────────────
   async cleanup() {
-    const page = browserService.getPage();
     log('cleanup: navigating to fresh form...');
-    await page.goto('https://divar.ir/new', { waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
-    await sleep(2000);
+    await browserService.navigate('https://divar.ir/new');
+    await sleep(3000);
+    // Re-acquire page reference after navigation
+    try {
+      await browserService.reacquirePage();
+    } catch {}
+    // Scroll to top — Divar may auto-scroll to a later section
+    const page = browserService.getPage();
+    await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
+    await sleep(1000);
     const url = page.url();
     if (!url.includes('divar.ir')) {
       throw new Error('صفحه دیوار بارگذاری نشد: ' + url);
@@ -342,7 +349,7 @@ class DivarAutomator {
   // ── Click بعدی ──────────────────────────────────────────────────
   async clickNext() {
     await randomDelay();
-    const page = browserService.getPage();
+    let page = browserService.getPage();
 
     const buttons = await page.$$('button');
     for (const btn of buttons) {
@@ -352,7 +359,9 @@ class DivarAutomator {
         if (isVisible) {
           log('clicking بعدی...');
           await btn.click();
-          await sleep(2000);
+          await sleep(3000);
+          // Re-acquire page reference after navigation
+          try { await browserService.reacquirePage(); } catch {}
           return true;
         }
       }
