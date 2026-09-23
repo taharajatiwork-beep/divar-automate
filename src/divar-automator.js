@@ -167,6 +167,7 @@ class DivarAutomator {
 
   // ── Page 2: Car select dropdowns + usage input ──────────────────
   async fillPage2(product) {
+    try { await browserService.reacquirePage(); } catch {}
     log('page 2: car fields');
     const page = browserService.getPage();
     const attrs = product.attributes || {};
@@ -295,7 +296,7 @@ class DivarAutomator {
     for (const row of rows) {
       const { text } = await getOptionTitle(row);
       const norm = normalizeOption(text);
-      if (norm.includes(wanted) || wanted.includes(norm)) {
+      if (norm.includes(wanted) || wanted.includes(norm) || norm.split(/s*[-–]s*/).some(r => r.includes(wanted) || wanted.includes(r))) {
         await row.click();
         return { success: true, strategy: 'pass1-exact' };
       }
@@ -373,6 +374,7 @@ class DivarAutomator {
 
   // ── Page 3: Price ───────────────────────────────────────────────
   async fillPricePage(product) {
+    try { await browserService.reacquirePage(); } catch {}
     log('page 3: price');
     const page = browserService.getPage();
 

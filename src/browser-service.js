@@ -180,9 +180,12 @@ class BrowserService {
   async _ping() {
     if (!this._browser) return false;
     try {
-      // Try to list pages — lightweight CDP call
+      // Try to list pages AND evaluate something — more robust
       const pages = await this._browser.pages();
-      return pages.length >= 0; // If it doesn't throw, we're alive
+      if (pages.length === 0) return false;
+      // Actually ping the browser with a real CDP call
+      await pages[0].evaluate(() => 1, { timeout: 3000 }).catch(() => false);
+      return true;
     } catch {
       return false;
     }
