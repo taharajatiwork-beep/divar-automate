@@ -172,21 +172,31 @@
     // Pass 1: exact/fuzzy match on full text
     log('DEBUG matching: wanted=' + wanted + ' brandWord=' + brandWord + ' rows=' + rows.length);
     for (const row of rows) {
-      const t = row.querySelector('.start__title-_UBPtX, p');
-      const txt = normalizeOption(t?.textContent || row.textContent || '');
+      // Year modal doesn't use .start__title — try multiple selectors
+      const titleEl = row.querySelector('.start__title-_UBPtX') ||
+        row.querySelector('p[class*="title"]') ||
+        row.querySelector('.kt-base-row__start p') ||
+        row.querySelector('p');
+      const txt = normalizeOption(titleEl?.textContent || row.textContent || '');
       if (txt.includes(wanted) || wanted.includes(txt)) {
-        matched = row; log('DEBUG match found:', t?.textContent?.trim(), 'txt:', txt); break;
+        matched = row; log('DEBUG match found:', titleEl?.textContent?.trim() || row.textContent?.trim()); break;
       }
     }
-    if (!matched) log('DEBUG no match in rows:', [...rows].map(r => normalizeOption(r.querySelector('.start__title-_UBPtX, p')?.textContent || '')).join(' | '));
+    if (!matched) log('DEBUG no match in rows:', [...rows].map(r => {
+      const p = r.querySelector('.start__title-_UBPtX') || r.querySelector('p');
+      return normalizeOption(p?.textContent || r.textContent || '').slice(0,30);
+    }).join(' | '));
 
-    // Pass 2: brand-only match (e.g. 'تویوتا' matches 'تویوتa Camry...')
+    // Pass 2: brand-only match
     if (!matched && brandWord.length > 2) {
       for (const row of rows) {
-        const t = row.querySelector('.start__title-_UBPtX, p');
-        const txt = normalizeOption(t?.textContent || row.textContent || '');
+        const titleEl = row.querySelector('.start__title-_UBPtX') ||
+          row.querySelector('p[class*="title"]') ||
+          row.querySelector('.kt-base-row__start p') ||
+          row.querySelector('p');
+        const txt = normalizeOption(titleEl?.textContent || row.textContent || '');
         if (txt.includes(brandWord)) {
-          matched = row; log('brand match:', t?.textContent?.trim()); break;
+          matched = row; log('DEBUG brand match:', titleEl?.textContent?.trim() || row.textContent?.trim()); break;
         }
       }
     }
@@ -451,7 +461,7 @@
     }
 
     // Brand/model: trigger is #brand_model___Input (from label for="brand_model___Input")
-    const brandVal = pf.brand && pf.model ? pf.brand + ' ' + pf.model : pf.brand;
+    const brandVal = pf.model || pf.brand;
     if (brandVal) {
       try {
         const ok = await clickDivarDropdownByName('brand_model', String(brandVal), 'برند و مدل');
