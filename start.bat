@@ -28,7 +28,8 @@ start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" ^
   --no-first-run ^
   --no-default-browser-check ^
   --disable-blink-features=AutomationControlled ^
-  --window-size=1280,900
+  --window-size=1280,900 ^
+  http://localhost:5174
 
 echo Chrome launched — using your default profile (Divar login active)
 echo.
