@@ -62,16 +62,17 @@ class DivarAutomator {
   // ── Navigate to fresh ad form (cleanup) ─────────────────────────
   async cleanup() {
     log('cleanup: navigating to fresh form...');
+    // Step 1: Navigate to divar.ir to clear form state
+    await browserService.navigate('https://divar.ir');
+    await sleep(2000);
+    // Step 2: Now navigate to new ad form (fresh state)
     await browserService.navigate('https://divar.ir/new');
     await sleep(3000);
     // Re-acquire page reference after navigation
     try {
       await browserService.reacquirePage();
     } catch {}
-    // Scroll to top — Divar may auto-scroll to a later section
     const page = browserService.getPage();
-    await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
-    await sleep(1000);
     const url = page.url();
     if (!url.includes('divar.ir')) {
       throw new Error('صفحه دیوار بارگذاری نشد: ' + url);
