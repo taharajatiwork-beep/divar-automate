@@ -162,11 +162,16 @@
     }
 
     // Step 1: Click 'show all items' to reveal search box
-    const showAllLink = [...modal.querySelectorAll('a, button, span, div')]
-      .find(el => el.offsetParent && /نمایشs*همه/.test(el.textContent));
-    if (showAllLink) {
-      showAllLink.click();
-      await sleep(600);
+    const showAllEl = modal.querySelector('.rawButton-W5tTZw') ||
+      modal.querySelector('[role="button"]');
+    if (showAllEl && /همه/.test(showAllEl.textContent)) {
+      showAllEl.click();
+      await sleep(800);
+    } else {
+      // Fallback: find any clickable element containing 'show all'
+      const allBtn = [...modal.querySelectorAll('[role="button"], a, button')]
+        .find(e => e.offsetParent && /همه/.test(e.textContent));
+      if (allBtn) { allBtn.click(); await sleep(800); }
     }
 
     // Step 2: Type in search box to filter options
