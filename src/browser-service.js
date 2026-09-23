@@ -1,18 +1,20 @@
 // ─── Browser Service — Puppeteer-core + Chrome ──────────────────────
-// Launches Chrome with remote debugging + user's DEFAULT profile.
-// Chrome uses %LOCALAPPDATA%\Google\Chrome\User Data (already logged in).
+// Launches a SEPARATE Chrome window with its own profile (divar-profile/).
+// User logs into Divar ONCE in this window — session persists.
+// NEVER kills existing Chrome windows.
 // Puppeteer connects via CDP — all clicks are isTrusted=true.
 
 import { spawn, execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { request as httpRequest } from 'node:http';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = join(__dirname, '..');
+const PROFILE_DIR = join(PROJECT_ROOT, 'divar-profile');
 const DEBUG_PORT = 9222;
 const DIVAR_AD_URL = 'https://divar.ir/new';
-
-// User's default Chrome profile (already logged into Divar)
-const USER_PROFILE = join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'User Data');
 
 // ─── Find Chrome ──────────────────────────────────────────────────────
 
@@ -26,7 +28,6 @@ function findChrome() {
   for (const p of CHROME_PATHS) {
     if (existsSync(p)) return p;
   }
-  // Try PATH
   try {
     const which = process.platform === 'win32' ? 'where' : 'which';
     const found = execSync(`${which} chrome`, { encoding: 'utf-8' }).trim().split('\n')[0];
@@ -83,24 +84,19 @@ class BrowserService {
       throw new Error('Chrome not found. Install Google Chrome.');
     }
 
-    // Check if Chrome is already running on debug port
+    // Check if Chrome is already on debug port (e.g. from start.bat)
     const portStatus = await isPortInUse(DEBUG_PORT);
     if (!portStatus.inUse) {
-      // Chrome might be running without debug port — kill it first
-      console.log('[browser] Chrome not on debug port, restarting...');
-      try { execSync('taskkill /IM chrome.exe /F', { stdio: 'ignore' }); } catch {}
-      await sleep(2000);
-
-      // Launch Chrome with remote debugging + default profile
-      console.log('[browser] launching Chrome with remote debugging...');
+      // Launch a SEPARATE Chrome window with divar-profile
+      // This does NOT interfere with user's main Chrome
+      console.log('[browser] launching Chrome (divar-profile)...');
       this._chromeProcess = spawn(chromePath, [
         `--remote-debugging-port=${DEBUG_PORT}`,
-        `--user-data-dir=${USER_PROFILE}`,
+        `--user-data-dir=${PROFILE_DIR}`,
         '--no-first-run',
         '--no-default-browser-check',
         '--disable-blink-features=AutomationControlled',
         '--window-size=1280,900',
-        'http://localhost:5174',
       ], { stdio: 'ignore', detached: false });
 
       this._chromeProcess.on('error', (err) => {
@@ -113,7 +109,6 @@ class BrowserService {
         this._page = null;
       });
 
-      // Wait for Chrome to start
       console.log('[browser] waiting 5s for Chrome...');
       await sleep(5000);
     } else {
@@ -141,7 +136,7 @@ class BrowserService {
       } catch (err) {
         console.warn('[browser] attempt ' + attempt + ' failed: ' + err.message);
         if (attempt < 5) await sleep(2000);
-        else throw new Error('Cannot connect to Chrome: ' + err.message);
+        else throw new Error('Cannot connect to Chrome on port ' + DEBUG_PORT + ': ' + err.message);
       }
     }
 

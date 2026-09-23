@@ -5,12 +5,13 @@ echo   Divar Pilot
 echo ============================================
 echo.
 
-:: ── Step 1: Start server FIRST ──
+:: ── Step 1: Start server ──
 echo [1/3] Starting server...
 cd /d "%~dp0"
 
-:: Kill old server on port 3000
+:: Kill ONLY the process on port 3000
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":3000 " ^| findstr LISTENING') do (
+    echo Stopping old server (PID %%a^)...
     taskkill /PID %%a /F >nul 2>&1
 )
 timeout /t 1 /nobreak >nul
@@ -21,13 +22,17 @@ timeout /t 3 /nobreak >nul
 echo Server: OK
 echo.
 
-:: ── Step 2: Close all Chrome, then relaunch with debug port ──
-echo [2/3] Closing Chrome...
-taskkill /IM chrome.exe /F >nul 2>&1
+:: ── Step 2: Kill OLD debug Chrome on port 9222 only (not all Chrome!) ──
+echo [2/3] Checking Chrome debug port...
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":9222 " ^| findstr LISTENING') do (
+    echo Stopping old debug Chrome (PID %%a^)...
+    taskkill /PID %%a /F >nul 2>&1
+)
 timeout /t 2 /nobreak >nul
 
-echo Starting Chrome with debug port...
-set "CHROME_PROFILE=%LOCALAPPDATA%\Google\Chrome\User Data"
+:: Launch Chrome with SEPARATE profile (divar-profile)
+echo Starting Chrome (divar-profile)...
+set "CHROME_PROFILE=%~dp0divar-profile"
 start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" ^
   --remote-debugging-port=9222 ^
   --user-data-dir="%CHROME_PROFILE%" ^
