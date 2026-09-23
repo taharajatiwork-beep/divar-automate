@@ -165,7 +165,22 @@ export default function OperatorDashboard({ token, user }) {
       try { const r = await fetch(`/api/products/${id}/complete`, { method: 'POST', headers: h }); const d = await r.json(); if (!r.ok) { setMsg({ type: 'error', text: d.error }); return; } setMsg({ type: 'success', text: '\u{1F389} \u062B\u0628\u062A \u0634\u062F!' }); loadBoard(); } catch { setMsg({ type: 'error', text: '\u062E\u0637\u0627.' }); }
     }
     if (action === 'open') {
-      try { const r = await fetch(`/api/products/${id}/prefill`, { headers: h }); const d = await r.json(); if (!r.ok) { setMsg({ type: 'error', text: d.error }); return; } await fetch('/api/prefill/pending', { method: 'POST', headers: h, body: JSON.stringify({ productId: id, prefill: d.prefill }) }); window.open('https://divar.ir/new', '_blank'); setMsg({ type: 'success', text: '\u{1F310} \u062F\u06CC\u0648\u0627\u0631 \u0628\u0627\u0632 \u0634\u062F! \u0641\u0631\u0645 \u0631\u0648 \u067E\u0631 \u06A9\u0646.' }); } catch { setMsg({ type: 'error', text: '\u062E\u0637\u0627.' }); }
+      try {
+        setMsg({ type: 'info', text: '🔄 در حال اتصال به Chrome...' });
+        // Step 1: Connect to Chrome
+        const launchRes = await fetch('/api/browser/launch', { method: 'POST', headers: h });
+        const launchData = await launchRes.json();
+        if (!launchRes.ok) { setMsg({ type: 'error', text: launchData.error || 'خطا در اتصال Chrome' }); return; }
+        // Step 2: Navigate to divar.ir/new
+        await fetch('/api/browser/navigate', { method: 'POST', headers: h, body: JSON.stringify({ url: 'https://divar.ir/new' }) });
+        // Step 3: Auto-fill the form
+        setMsg({ type: 'info', text: '⏳ در حال پر کردن فرم...' });
+        const fillRes = await fetch('/api/browser/fill', { method: 'POST', headers: h, body: JSON.stringify({ productId: id }) });
+        const fillData = await fillRes.json();
+        if (!fillRes.ok) { setMsg({ type: 'error', text: fillData.error || 'خطا در پر کردن فرم' }); return; }
+        setMsg({ type: 'success', text: `✅ فرم پر شد! ${fillData.results?.filter(r => r.status === 'filled').length || 0} فیلد خودکار. مکان و تماس رو دستی تکمیل کنید.` });
+        loadBoard();
+      } catch (e) { setMsg({ type: 'error', text: 'خطا: ' + e.message }); }
     }
   }
 
@@ -182,7 +197,7 @@ export default function OperatorDashboard({ token, user }) {
         <p className="text-sm text-gray-400">\u0645\u062D\u0635\u0648\u0644 \u0631\u0648 \u0627\u0646\u062A\u062E\u0627\u0628 \u06A9\u0646 {'\u2192'} \u0642\u0641\u0644 \u06A9\u0646 {'\u2192'} \u0641\u0631\u0645 \u0631\u0648 \u067E\u0631 \u06A9\u0646 {'\u2192'} \u062B\u0628\u062A \u06A9\u0646.</p>
       </div>
       <Steps step={myLocked.length > 0 ? 1 : 0} />
-      {msg && <div className={`px-4 py-3 rounded-lg text-sm ${msg.type === 'error' ? 'bg-red-900/40 text-red-300 border border-red-700/50' : 'bg-emerald-900/40 text-emerald-300 border border-emerald-700/50'}`}>{msg.text}</div>}
+      {msg && <div className={`px-4 py-3 rounded-lg text-sm ${msg.type === 'error' ? 'bg-red-900/40 text-red-300 border border-red-700/50' : msg.type === 'info' ? 'bg-blue-900/40 text-blue-300 border border-blue-700/50' : 'bg-emerald-900/40 text-emerald-300 border border-emerald-700/50'}`}>{msg.text}</div>}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-1"><BrowserPanel token={token} /></div>
         <div className="lg:col-span-2">
