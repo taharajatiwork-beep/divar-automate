@@ -140,13 +140,16 @@
 
     trigger.click();
     await sleep(700);
+    log('DEBUG after click: expanded=' + trigger.getAttribute('aria-expanded') + ' text=' + trigger.innerText?.trim());
 
     if (trigger.getAttribute('aria-expanded') !== 'true') {
-      warn('field did not open:', fieldId);
+      warn('field did not open:', fieldId, 'aria-expanded=' + trigger.getAttribute('aria-expanded'));
       return false;
     }
 
     const modal = document.querySelector('.single-select-modal.kt-modal');
+    const modalRows = modal ? modal.querySelectorAll('.kt-base-row').length : 0;
+    log('DEBUG modal:', modal ? 'found' : 'NOT FOUND', 'rows:', modalRows);
     if (!modal) { warn('modal not found:', fieldId); trigger.click(); return false; }
 
     // Get all option rows
@@ -206,11 +209,13 @@
     const rect = matched.getBoundingClientRect();
     const cx = Math.round(rect.left + rect.width / 2);
     const cy = Math.round(rect.top + rect.height / 2);
+    log('DEBUG CDP click at:', cx, cy, 'for:', matched.querySelector('.start__title-_UBPtX, p')?.textContent?.trim());
     let clicked = false;
     try {
       const resp = await chrome.runtime.sendMessage({ action: 'cdpClick', x: cx, y: cy });
       clicked = resp?.success;
-    } catch (e) { warn('cdpClick msg error:', e.message); }
+      log('DEBUG CDP response:', JSON.stringify(resp));
+    } catch (e) { warn('DEBUG cdpClick error:', e.message); }
     
     await sleep(700);
     const after = (trigger.innerText || '').trim();

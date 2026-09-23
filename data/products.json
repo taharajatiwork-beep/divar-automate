@@ -21,9 +21,9 @@
     "city": "تهران",
     "createdAt": "2026-09-22T12:22:35.994Z",
     "updatedAt": "2026-09-22T12:22:35.994Z",
-    "status": "active",
-    "locked_by": null,
-    "locked_at": null
+    "status": "locked",
+    "locked_by": "op-ali",
+    "locked_at": "2026-09-23T07:32:04.832Z"
   },
   {
     "id": "P002",
