@@ -1,17 +1,39 @@
 // ─── Browser Service — Puppeteer-core + Chrome ──────────────────────
-// Connects to user's DEFAULT Chrome profile (already logged into Divar).
-// Requires Chrome to be launched with --remote-debugging-port=9222
-// (start.bat handles this automatically).
-//
-// Flow:
-//   1. start.bat launches Chrome with default profile + debug port
-//   2. browser-service connects via Puppeteer
-//   3. Divar session/cookies are already active (no re-login needed)
+// Launches Chrome with remote debugging + user's DEFAULT profile.
+// Chrome uses %LOCALAPPDATA%\Google\Chrome\User Data (already logged in).
+// Puppeteer connects via CDP — all clicks are isTrusted=true.
 
+import { spawn, execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { request as httpRequest } from 'node:http';
 
 const DEBUG_PORT = 9222;
 const DIVAR_AD_URL = 'https://divar.ir/new';
+
+// User's default Chrome profile (already logged into Divar)
+const USER_PROFILE = join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'User Data');
+
+// ─── Find Chrome ──────────────────────────────────────────────────────
+
+const CHROME_PATHS = [
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+];
+
+function findChrome() {
+  for (const p of CHROME_PATHS) {
+    if (existsSync(p)) return p;
+  }
+  // Try PATH
+  try {
+    const which = process.platform === 'win32' ? 'where' : 'which';
+    const found = execSync(`${which} chrome`, { encoding: 'utf-8' }).trim().split('\n')[0];
+    if (found && existsSync(found)) return found;
+  } catch {}
+  return null;
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -19,7 +41,6 @@ function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
-// Check if Chrome is already running on debug port
 async function isPortInUse(port) {
   return new Promise((resolve) => {
     const req = httpRequest(`http://127.0.0.1:${port}/json/version`, (res) => {
@@ -45,6 +66,7 @@ class BrowserService {
   constructor() {
     this._browser = null;
     this._page = null;
+    this._chromeProcess = null;
     this._ready = false;
   }
 
@@ -56,18 +78,44 @@ class BrowserService {
       return this;
     }
 
-    // Step 1: Check if Chrome is running on debug port
+    const chromePath = findChrome();
+    if (!chromePath) {
+      throw new Error('Chrome not found. Install Google Chrome.');
+    }
+
+    // Check if Chrome is already running on debug port
     const portStatus = await isPortInUse(DEBUG_PORT);
     if (!portStatus.inUse) {
-      throw new Error(
-        'Chrome not found on debug port ' + DEBUG_PORT + '.\n' +
-        'Run start.bat first, or launch Chrome with:\n' +
-        'chrome.exe --remote-debugging-port=9222'
-      );
-    }
-    console.log('[browser] found Chrome on port ' + DEBUG_PORT);
+      // Launch Chrome with remote debugging + default profile
+      console.log('[browser] launching Chrome with remote debugging...');
+      this._chromeProcess = spawn(chromePath, [
+        `--remote-debugging-port=${DEBUG_PORT}`,
+        `--user-data-dir=${USER_PROFILE}`,
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--disable-blink-features=AutomationControlled',
+        '--window-size=1280,900',
+        'http://localhost:5174',
+      ], { stdio: 'ignore', detached: false });
 
-    // Step 2: Connect puppeteer-core
+      this._chromeProcess.on('error', (err) => {
+        console.error('[browser] Chrome error:', err.message);
+        this._ready = false;
+      });
+      this._chromeProcess.on('exit', () => {
+        this._ready = false;
+        this._browser = null;
+        this._page = null;
+      });
+
+      // Wait for Chrome to start
+      console.log('[browser] waiting 5s for Chrome...');
+      await sleep(5000);
+    } else {
+      console.log('[browser] Chrome already on port ' + DEBUG_PORT);
+    }
+
+    // Connect puppeteer-core
     let puppeteer;
     try {
       puppeteer = await import('puppeteer-core');
@@ -76,7 +124,6 @@ class BrowserService {
     }
 
     const browserURL = `http://127.0.0.1:${DEBUG_PORT}`;
-
     for (let attempt = 1; attempt <= 5; attempt++) {
       try {
         console.log('[browser] connecting (attempt ' + attempt + ')...');
@@ -93,7 +140,7 @@ class BrowserService {
       }
     }
 
-    // Step 3: Find the page (or create one)
+    // Find the page
     const pages = await this._browser.pages();
     this._page = pages[0] || await this._browser.newPage();
 
@@ -102,7 +149,6 @@ class BrowserService {
     return this;
   }
 
-  // Navigate to a URL
   async navigate(url) {
     const page = this.getPage();
     console.log('[browser] navigating to: ' + url);
@@ -113,7 +159,6 @@ class BrowserService {
     return { url: page.url() };
   }
 
-  // Navigate to Divar ad form
   async openAdForm() {
     return this.navigate(DIVAR_AD_URL);
   }
@@ -149,7 +194,7 @@ class BrowserService {
 
   async close() {
     if (this._browser) {
-      try { this._browser.disconnect(); } catch { /* ignore */ }
+      try { this._browser.disconnect(); } catch {}
     }
     this._browser = null;
     this._page = null;
