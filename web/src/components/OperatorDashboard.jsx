@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Globe, Lock, Unlock, CheckCircle, Image as ImageIcon, MapPin, Loader2 } from 'lucide-react';
+import { Globe, Lock, Unlock, CheckCircle, Image as ImageIcon, MapPin, Loader2, RefreshCw } from 'lucide-react';
 import { useToast } from './ToastProvider.jsx';
 
 const CAT_LABELS = { 'vehicles': '🚗 خودرو', 'mobile-phones': '📱 موبایل', 'laptops': '💻 لپ‌تاپ', 'accessories': '🎧 لوازم جانبی' };
@@ -135,6 +135,18 @@ function ActiveCard({ product, onAction, token }) {
     }
   };
 
+  const doReconnect = async () => {
+    try {
+      const r = await fetch('/api/browser/reconnect', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      if (d.ready) {
+        setBrowserStatus(d);
+        addToast('✅ مرورگر متصل شد', 'success');
+      } else {
+        addToast('❌ خطا در اتصال مرورگر', 'error');
+      }
+    } catch { addToast('خطا در اتصال مرورگر', 'error'); }
+  };
   const doCancel = async () => {
     try {
       await fetch('/api/browser/fill/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } });

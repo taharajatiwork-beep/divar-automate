@@ -426,6 +426,17 @@ const server = createServer(async (req, res) => {
       }
     }
 
+
+    if (method === 'POST' && path === '/api/browser/reconnect') {
+      requireAuth(user, 'task:create');
+      const browser = (await import('./browser-service.js')).default;
+      try {
+        await browser.reconnect();
+        return sendJson(res, 200, { ok: true, message: 'Browser reconnected.', ...await browser.getStatus() });
+      } catch (err) {
+        return sendJson(res, 500, { error: 'Reconnect failed: ' + err.message });
+      }
+    }
     if (method === 'POST' && path === '/api/browser/navigate') {
       requireAuth(user, 'task:create');
       const browser = (await import('./browser-service.js')).default;

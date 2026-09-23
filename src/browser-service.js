@@ -1,8 +1,6 @@
 // ─── Browser Service — Puppeteer-core + Chrome ──────────────────────
-// Launches a SEPARATE Chrome window with its own profile (divar-profile/).
-// User logs into Divar ONCE in this window — session persists.
-// NEVER kills existing Chrome windows.
-// Puppeteer connects via CDP — all clicks are isTrusted=true.
+// Launches Chrome with divar-profile. User logs in ONCE.
+// Health-check pings Chrome every 10s. Detects real disconnections.
 
 import { spawn, execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -17,7 +15,6 @@ const DEBUG_PORT = 9222;
 const DIVAR_AD_URL = 'https://divar.ir/new';
 
 // ─── Find Chrome ──────────────────────────────────────────────────────
-
 const CHROME_PATHS = [
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
@@ -36,8 +33,6 @@ function findChrome() {
   return null;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────
-
 function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
@@ -46,7 +41,7 @@ async function isPortInUse(port) {
   return new Promise((resolve) => {
     const req = httpRequest(`http://127.0.0.1:${port}/json/version`, (res) => {
       let data = '';
-      res.on('data', (chunk) => data += chunk);
+      res.on('data', (chunk) => (data += chunk));
       res.on('end', () => {
         try {
           const info = JSON.parse(data);
@@ -62,33 +57,36 @@ async function isPortInUse(port) {
 }
 
 // ─── Singleton ───────────────────────────────────────────────────────
-
 class BrowserService {
   constructor() {
     this._browser = null;
     this._page = null;
     this._chromeProcess = null;
     this._ready = false;
+    this._healthInterval = null;
   }
 
   get ready() { return this._ready; }
 
   async launch() {
     if (this._browser) {
-      console.log('[browser] already connected');
-      return this;
+      // Verify it's still alive before reusing
+      const alive = await this._ping();
+      if (alive) {
+        console.log('[browser] already connected');
+        return this;
+      }
+      // Stale connection — reset
+      console.log('[browser] stale connection detected, reconnecting...');
+      this._cleanup();
     }
 
     const chromePath = findChrome();
-    if (!chromePath) {
-      throw new Error('Chrome not found. Install Google Chrome.');
-    }
+    if (!chromePath) throw new Error('Chrome not found. Install Google Chrome.');
 
-    // Check if Chrome is already on debug port (e.g. from start.bat)
+    // Check if Chrome is already on debug port
     const portStatus = await isPortInUse(DEBUG_PORT);
     if (!portStatus.inUse) {
-      // Launch a SEPARATE Chrome window with divar-profile
-      // This does NOT interfere with user's main Chrome
       console.log('[browser] launching Chrome (divar-profile)...');
       this._chromeProcess = spawn(chromePath, [
         `--remote-debugging-port=${DEBUG_PORT}`,
@@ -104,9 +102,8 @@ class BrowserService {
         this._ready = false;
       });
       this._chromeProcess.on('exit', () => {
-        this._ready = false;
-        this._browser = null;
-        this._page = null;
+        console.log('[browser] Chrome process exited');
+        this._markDisconnected();
       });
 
       console.log('[browser] waiting 5s for Chrome...');
@@ -140,15 +137,108 @@ class BrowserService {
       }
     }
 
-    // Find the page
-    const pages = await this._browser.pages();
-    this._page = pages[0] || await this._browser.newPage();
+    // Listen for disconnection
+    this._browser.on('disconnected', () => {
+      console.log('[browser] disconnected event fired');
+      this._markDisconnected();
+    });
+
+    // Find/create a suitable page (not the web app itself)
+    await this._acquirePage();
 
     this._ready = true;
+    this._startHealthCheck();
     console.log('[browser] ready — URL: ' + this._page.url());
     return this;
   }
 
+  // Ensure we're using a page that's NOT localhost:5174
+  async _acquirePage() {
+    const pages = await this._browser.pages();
+    // Prefer a divar page, or the first non-localhost page
+    for (const p of pages) {
+      const url = p.url();
+      if (url.includes('divar.ir') && !url.includes('localhost')) {
+        this._page = p;
+        return;
+      }
+    }
+    // Use first page that's not our web app
+    for (const p of pages) {
+      const url = p.url();
+      if (!url.includes('localhost:5174') && !url.startsWith('chrome://')) {
+        this._page = p;
+        return;
+      }
+    }
+    // Fallback: create new page
+    this._page = pages[0] || await this._browser.newPage();
+  }
+
+  // ── Health check: ping Chrome every 10s ──────────────────────
+  _startHealthCheck() {
+    this._stopHealthCheck();
+    this._healthInterval = setInterval(async () => {
+      const alive = await this._ping();
+      if (!alive && this._ready) {
+        console.log('[browser] health check failed — marking disconnected');
+        this._markDisconnected();
+      }
+    }, 10000);
+  }
+
+  _stopHealthCheck() {
+    if (this._healthInterval) {
+      clearInterval(this._healthInterval);
+      this._healthInterval = null;
+    }
+  }
+
+  async _ping() {
+    if (!this._browser) return false;
+    try {
+      // Try to list pages — lightweight CDP call
+      const pages = await this._browser.pages();
+      return pages.length >= 0; // If it doesn't throw, we're alive
+    } catch {
+      return false;
+    }
+  }
+
+  _markDisconnected() {
+    this._ready = false;
+    this._page = null;
+    // Don't null _browser — might reconnect
+    this._stopHealthCheck();
+  }
+
+  _cleanup() {
+    this._stopHealthCheck();
+    try { this._browser?.disconnect(); } catch {}
+    this._browser = null;
+    this._page = null;
+    this._ready = false;
+  }
+
+  // ── Getters ──────────────────────────────────────────────────
+  async getStatus() {
+    const alive = await this._ping();
+    if (!alive && this._ready) {
+      this._markDisconnected();
+    }
+    return {
+      ready: alive,
+      port: DEBUG_PORT,
+      currentUrl: this._page?.url?.() || null,
+    };
+  }
+
+  getPage() {
+    if (!this._page) throw new Error('مرورگر متصل نیست. ابتدا دکمه راه‌اندازی مرورگر را بزنید.');
+    return this._page;
+  }
+
+  // ── Actions ──────────────────────────────────────────────────
   async navigate(url) {
     const page = this.getPage();
     console.log('[browser] navigating to: ' + url);
@@ -161,28 +251,6 @@ class BrowserService {
 
   async openAdForm() {
     return this.navigate(DIVAR_AD_URL);
-  }
-
-  async getStatus() {
-    let alive = this._ready;
-    if (alive && this._page) {
-      try {
-        await this._page.evaluate(() => 1, { timeout: 3000 });
-      } catch {
-        alive = false;
-        this._ready = false;
-      }
-    }
-    return {
-      ready: alive,
-      port: DEBUG_PORT,
-      currentUrl: this._page?.url?.() || null,
-    };
-  }
-
-  getPage() {
-    if (!this._page) throw new Error('Browser not launched. Call launch() first.');
-    return this._page;
   }
 
   async evaluate(fn, ...args) {
@@ -201,14 +269,20 @@ class BrowserService {
     return this.getPage().waitForSelector(selector, options);
   }
 
-  async close() {
-    if (this._browser) {
-      try { this._browser.disconnect(); } catch {}
-    }
+  close() {
+    this._stopHealthCheck();
+    try { this._browser?.disconnect(); } catch {}
     this._browser = null;
     this._page = null;
     this._ready = false;
     console.log('[browser] disconnected');
+  }
+
+  // ── Force reconnect (for "reconnect" button) ────────────────
+  async reconnect() {
+    console.log('[browser] force reconnecting...');
+    this._cleanup();
+    return this.launch();
   }
 }
 
