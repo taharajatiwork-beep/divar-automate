@@ -411,16 +411,16 @@ const server = createServer(async (req, res) => {
     // ── Browser Control (Puppeteer-based) ─────────────────────────
     if (method === 'GET' && path === '/api/browser/status') {
       const browser = (await import('./browser-service.js')).default;
-      return sendJson(res, 200, browser.getStatus());
+      return sendJson(res, 200, await browser.getStatus());
     }
 
     if (method === 'POST' && path === '/api/browser/launch') {
       requireAuth(user, 'task:create');
       const browser = (await import('./browser-service.js')).default;
-      if (browser.ready) return sendJson(res, 200, { ok: true, message: 'Browser already running.', ...browser.getStatus() });
+      if (browser.ready) return sendJson(res, 200, { ok: true, message: 'Browser already running.', ...await browser.getStatus() });
       try {
         await browser.launch();
-        return sendJson(res, 200, { ok: true, message: 'Browser launched.', ...browser.getStatus() });
+        return sendJson(res, 200, { ok: true, message: 'Browser launched.', ...await browser.getStatus() });
       } catch (err) {
         return sendJson(res, 500, { error: 'Failed to launch browser: ' + err.message });
       }

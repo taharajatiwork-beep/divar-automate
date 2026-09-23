@@ -163,11 +163,20 @@ class BrowserService {
     return this.navigate(DIVAR_AD_URL);
   }
 
-  getStatus() {
+  async getStatus() {
+    let alive = this._ready;
+    if (alive && this._page) {
+      try {
+        await this._page.evaluate(() => 1, { timeout: 3000 });
+      } catch {
+        alive = false;
+        this._ready = false;
+      }
+    }
     return {
-      ready: this._ready,
+      ready: alive,
       port: DEBUG_PORT,
-      currentUrl: this._page?.url() || null,
+      currentUrl: this._page?.url?.() || null,
     };
   }
 
