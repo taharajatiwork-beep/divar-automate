@@ -5,6 +5,13 @@ echo   Divar Pilot — Chrome + Server
 echo ============================================
 echo.
 
+:: ── Step 0: Kill old backend on port 3000 only ──
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":3000 " ^| findstr LISTENING') do (
+    echo Stopping old server on port 3000 ^(PID %%a^)...
+    taskkill /PID %%a /F >nul 2>&1
+)
+echo.
+
 :: ── Step 1: Launch Chrome with remote debugging ──
 echo [1/2] Starting Chrome...
 start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" ^
@@ -25,6 +32,7 @@ timeout /t 3 /nobreak >nul
 :: ── Step 3: Start the server ──
 echo Starting Node.js server...
 echo.
+cd /d "%~dp0"
 node src/server.js
 
 pause
