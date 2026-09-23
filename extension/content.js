@@ -170,13 +170,15 @@
     let matched = null;
 
     // Pass 1: exact/fuzzy match on full text
+    log('DEBUG matching: wanted=' + wanted + ' brandWord=' + brandWord + ' rows=' + rows.length);
     for (const row of rows) {
       const t = row.querySelector('.start__title-_UBPtX, p');
       const txt = normalizeOption(t?.textContent || row.textContent || '');
       if (txt.includes(wanted) || wanted.includes(txt)) {
-        matched = row; log('match:', t?.textContent?.trim()); break;
+        matched = row; log('DEBUG match found:', t?.textContent?.trim(), 'txt:', txt); break;
       }
     }
+    if (!matched) log('DEBUG no match in rows:', [...rows].map(r => normalizeOption(r.querySelector('.start__title-_UBPtX, p')?.textContent || '')).join(' | '));
 
     // Pass 2: brand-only match (e.g. 'تویوتا' matches 'تویوتa Camry...')
     if (!matched && brandWord.length > 2) {
