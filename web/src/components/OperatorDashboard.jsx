@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Globe, Lock, Unlock, CheckCircle, Image as ImageIcon, MapPin, Loader2 } from 'lucide-react';
-import { useToast } from '../ui/index.jsx';
+import { useToast } from './ToastProvider.jsx';
 
 const CAT_LABELS = { 'vehicles': '🚗 خودرو', 'mobile-phones': '📱 موبایل', 'laptops': '💻 لپ‌تاپ', 'accessories': '🎧 لوازم جانبی' };
 const LOCK_MS = 30 * 60 * 1000;
