@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Sidebar from './components/Sidebar.jsx';
 import Login from './components/Login.jsx';
 import Dashboard from './components/Dashboard.jsx';
@@ -23,6 +23,7 @@ export default function App() {
   const [page, setPage] = useState('dashboard');
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [browserStatus, setBrowserStatus] = useState(null);
 
   const isOperator = user?.role === 'operator';
   const pages = isOperator ? OPERATOR_PAGES : ADMIN_PAGES;
@@ -38,7 +39,24 @@ export default function App() {
     setUser(null);
     setPage('dashboard');
     setSelectedTaskId(null);
+    setBrowserStatus(null);
   };
+
+  // Poll browser status
+  useEffect(() => {
+    if (!user) return;
+    const checkBrowser = async () => {
+      try {
+        const r = await fetch('/api/browser/status', {
+          headers: user.token ? { Authorization: `Bearer ${user.token}` } : {}
+        });
+        if (r.ok) setBrowserStatus(await r.json());
+      } catch { /* ignore */ }
+    };
+    checkBrowser();
+    const iv = setInterval(checkBrowser, 10000);
+    return () => clearInterval(iv);
+  }, [user]);
 
   if (!user) {
     return <Login onLogin={setUser} />;
@@ -48,13 +66,23 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar pages={pages} active={page} onNavigate={navigateTo} />
+      <Sidebar pages={pages} active={page} onNavigate={navigateTo} browserStatus={browserStatus} />
 
       <div className="flex-1 flex flex-col">
+        {/* Top bar */}
         <div className="flex items-center justify-between px-6 py-2 bg-gray-900 border-b border-gray-700">
-          <span className="text-sm text-gray-400">
-            {user.name} — <span className="text-gray-500">{ROLE_LABELS[user.role]}</span>
-          </span>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-400">
+              {user.name} — <span className="text-gray-500">{ROLE_LABELS[user.role]}</span>
+            </span>
+            {/* Browser status indicator */}
+            <div className="flex items-center gap-1.5 text-xs">
+              <div className={`w-2 h-2 rounded-full ${browserStatus?.ready ? 'bg-green-400' : 'bg-gray-600'}`} />
+              <span className={`${browserStatus?.ready ? 'text-green-400' : 'text-gray-500'}`}>
+                {browserStatus?.ready ? (browserStatus.loginRequired ? 'نیاز به ورود' : 'مرورگر متصل') : 'مرورگر قطع'}
+              </span>
+            </div>
+          </div>
           <button
             onClick={handleLogout}
             className="text-xs text-gray-500 hover:text-red-400 transition-colors"
@@ -63,6 +91,7 @@ export default function App() {
           </button>
         </div>
 
+        {/* Main content */}
         <main className="flex-1 p-6 overflow-auto" dir="rtl">
           {/* ── Operator view ── */}
           {isOperator && page === 'dashboard' && (

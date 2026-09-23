@@ -411,18 +411,32 @@ const server = createServer(async (req, res) => {
     // ── Browser Control (Puppeteer-based) ─────────────────────────
     if (method === 'GET' && path === '/api/browser/status') {
       const browser = (await import('./browser-service.js')).default;
-      return sendJson(res, 200, { ready: browser.ready, port: browser.port });
+      return sendJson(res, 200, browser.getStatus());
     }
 
     if (method === 'POST' && path === '/api/browser/launch') {
       requireAuth(user, 'task:create');
       const browser = (await import('./browser-service.js')).default;
-      if (browser.ready) return sendJson(res, 200, { ok: true, message: 'Browser already running.' });
+      if (browser.ready) return sendJson(res, 200, { ok: true, message: 'Browser already running.', ...browser.getStatus() });
       try {
         await browser.launch();
-        return sendJson(res, 200, { ok: true, message: 'Browser launched.', port: browser.port });
+        return sendJson(res, 200, { ok: true, message: 'Browser launched.', ...browser.getStatus() });
       } catch (err) {
         return sendJson(res, 500, { error: 'Failed to launch browser: ' + err.message });
+      }
+    }
+
+    if (method === 'POST' && path === '/api/browser/navigate') {
+      requireAuth(user, 'task:create');
+      const browser = (await import('./browser-service.js')).default;
+      if (!browser.ready) return sendJson(res, 400, { error: 'Browser not launched. Call POST /api/browser/launch first.' });
+      const body = await readJson(req);
+      const url = body.url || 'https://divar.ir/new';
+      try {
+        const result = await browser.navigate(url);
+        return sendJson(res, 200, { ok: true, ...result });
+      } catch (err) {
+        return sendJson(res, 500, { error: 'Navigation failed: ' + err.message });
       }
     }
 
@@ -430,6 +444,7 @@ const server = createServer(async (req, res) => {
       requireAuth(user, 'task:create');
       const browser = (await import('./browser-service.js')).default;
       if (!browser.ready) return sendJson(res, 400, { error: 'Browser not launched. Call POST /api/browser/launch first.' });
+      if (browser.loginRequired) return sendJson(res, 400, { error: 'User not logged in. Login at divar.ir first, then call POST /api/browser/navigate.' });
       const body = await readJson(req);
       if (!body.productId) return sendJson(res, 400, { error: 'productId الزامی است.' });
       const product = db.getProduct(body.productId);
