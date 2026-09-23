@@ -3,7 +3,7 @@
   "name": "دیوار — دستیار انتشار آگهی",
   "description": "پیش‌پرکردن خودکار فیلدهای فرم ثبت آگهی دیوار (فقط متن — بدون ارسال خودکار)",
   "version": "0.1.0",
-  "permissions": ["activeTab", "storage", "tabs", "debugger"],
+  "permissions": ["activeTab", "storage", "tabs", "debugger", "scripting"],
   "host_permissions": ["http://localhost:3000/*", "https://divar.ir/*"],
   "action": {
     "default_popup": "popup.html",

@@ -78,6 +78,21 @@ function showMain(user) {
       </a>
     </div>
     <div class="warning-banner">⛔ ثبت آگهی هرگز خودکار نیست — فقط فرم پر می‌شه</div>
+    <div id="status" class="section">
+      <div class="label">وضعیت پر کردن فرم</div>
+      <div style="background:#1a1a2e;border-radius:8px;padding:12px;font-size:13px;direction:rtl;">
+        <div style="color:#4ade80;">✅ خودکار: عنوان، توضیحات، عکس</div>
+        <div style="color:#4ade80;">✅ خودکار: سال، رنگ، سوخت، گیربکس، بدنه</div>
+        <div style="color:#fbbf24;">⏳ دستی: مکان آگهی</div>
+        <div style="color:#fbbf24;">⏳ دستی: راه‌های تماس</div>
+        <div style="color:#ef4444;margin-top:8px;">⚠️ هیچ‌وقت «ثبت اطلاعات» را خودکار نزنید!</div>
+      </div>
+    </div>
+    <div class="section">
+      <button id="bugReport" style="background:#e74c3c;color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;width:100%;font-family:inherit;font-size:13px;font-weight:600;">
+        🐛 گزارش خرابی
+      </button>
+    </div>
     <div class="section" style="text-align:center;">
       <div style="font-size:11px; color:#64748b;">
         اکستنشن فعال ✅<br/>
@@ -88,6 +103,63 @@ function showMain(user) {
   document.getElementById('btn-logout')?.addEventListener('click', async () => {
     await sendMessage('logout');
     location.reload();
+  });
+
+  // Bug Report handler
+  document.getElementById('bugReport')?.addEventListener('click', async () => {
+    const btn = document.getElementById('bugReport');
+    try {
+      // Get current tab URL
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+      // Inject a script to capture DOM state summary
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => ({
+          url: location.href,
+          title: document.title,
+          selectFields: [...document.querySelectorAll('[id*="___Input"]')].map(el => ({
+            id: el.id,
+            value: el.value || el.textContent?.trim()
+          })),
+          visibleButtons: [...document.querySelectorAll('button')].filter(b => b.offsetParent).map(b => b.textContent?.trim()).slice(0, 10),
+          modals: [...document.querySelectorAll('.kt-modal')].filter(m => m.offsetParent).length,
+          timestamp: new Date().toISOString()
+        })
+      });
+
+      const domState = results[0]?.result || {};
+
+      // Send to backend
+      const token = await new Promise((resolve) => {
+        chrome.storage.local.get('authToken', (d) => resolve(d.authToken));
+      });
+      await fetch('http://localhost:3000/api/bug-report', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + (token || '')
+        },
+        body: JSON.stringify({
+          operator: user.id || 'unknown',
+          domState,
+          userAgent: navigator.userAgent
+        })
+      });
+      // Show confirmation
+      btn.textContent = '✅ گزارش ارسال شد';
+      btn.style.background = '#27ae60';
+      setTimeout(() => {
+        btn.textContent = '🐛 گزارش خرابی';
+        btn.style.background = '#e74c3c';
+      }, 2000);
+    } catch (e) {
+      btn.textContent = '❌ خطا در ارسال';
+      btn.style.background = '#e74c3c';
+      setTimeout(() => {
+        btn.textContent = '🐛 گزارش خرابی';
+      }, 2000);
+    }
   });
 }
 
