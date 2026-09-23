@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createDatabase } from './database.js';
@@ -337,6 +337,21 @@ const server = createServer(async (req, res) => {
     if (method === 'GET' && path === '/api/mapping') {
       requireAuth(user, 'mapping:read');
       return sendJson(res, 200, { mapping: service.getMapping() });
+    }
+
+    // ── Bug Report ─────────────────────────────────────────────────
+    if (method === 'POST' && path === '/api/bug-report') {
+      requireAuth(user, 'products:read');
+      const report = await readJson(req);
+      report.timestamp = new Date().toISOString();
+      report.id = Date.now();
+      const __dirname = dirname(fileURLToPath(import.meta.url));
+      const reportsDir = join(__dirname, '..', 'data', 'bug-reports');
+      if (!existsSync(reportsDir)) mkdirSync(reportsDir, { recursive: true });
+      const filename = `report-${report.id}.json`;
+      writeFileSync(join(reportsDir, filename), JSON.stringify(report, null, 2));
+      db.addAuditLog({ action: 'bug_report', productId: null, operatorId: user.id, details: { reportId: report.id } });
+      return sendJson(res, 200, { ok: true, reportId: report.id });
     }
 
     return sendJson(res, 404, { error: 'مسیر پیدا نشد.' });
