@@ -86,6 +86,11 @@ class BrowserService {
     // Check if Chrome is already running on debug port
     const portStatus = await isPortInUse(DEBUG_PORT);
     if (!portStatus.inUse) {
+      // Chrome might be running without debug port — kill it first
+      console.log('[browser] Chrome not on debug port, restarting...');
+      try { execSync('taskkill /IM chrome.exe /F', { stdio: 'ignore' }); } catch {}
+      await sleep(2000);
+
       // Launch Chrome with remote debugging + default profile
       console.log('[browser] launching Chrome with remote debugging...');
       this._chromeProcess = spawn(chromePath, [
