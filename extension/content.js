@@ -161,12 +161,21 @@
       return false;
     }
 
-    // Type in search box to filter options
-    const searchInput = modal.querySelector('input[type="text"], input[type="search"], input:not([type])');
+    // Step 1: Click 'show all items' to reveal search box
+    const showAllLink = [...modal.querySelectorAll('a, button, span, div')]
+      .find(el => el.offsetParent && /نمایشs*همه/.test(el.textContent));
+    if (showAllLink) {
+      showAllLink.click();
+      await sleep(600);
+    }
+
+    // Step 2: Type in search box to filter options
+    const searchInput = modal.querySelector('#brand_model-search-input, input[type="text"], input[placeholder*="جستجو"]');
     if (searchInput) {
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-      if (setter) setter.call(searchInput, optionText);
-      else searchInput.value = optionText;
+      const searchTerm = optionText.replace(/d+/g, m => m); // keep numbers
+      if (setter) setter.call(searchInput, searchTerm);
+      else searchInput.value = searchTerm;
       searchInput.dispatchEvent(new Event('input', { bubbles: true }));
       await sleep(600);
     }
