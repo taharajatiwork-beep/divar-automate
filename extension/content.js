@@ -91,19 +91,22 @@
   // Divar AI auto-fills dropdown fields from description text!
   // ══════════════════════════════════════════════════════════════════
   function generateDescription(pf) {
-    if (pf.description && pf.description.length > 30) return pf.description;
-
     const parts = [];
-    if (pf.brand || pf.model) parts.push((pf.brand || '') + ' ' + (pf.model || ''));
-    if (pf.year) parts.push('سال تولید ' + pf.year);
-    if (pf.mileage) parts.push(pf.mileage + ' کیلومتر کارکرد');
-    if (pf.color) parts.push('رنگ: ' + pf.color);
-    if (pf.gearbox) parts.push(pf.gearbox);
-    if (pf.fuel) parts.push(pf.fuel);
-    if (pf.price) parts.push(new Intl.NumberFormat('fa-IR').format(pf.price) + ' تومان');
-    parts.push('سالم و بدون گرانتی');
-
-    return parts.join('. ') + '.';
+    if (pf.description && pf.description.length > 10) {
+      parts.push(pf.description);
+    }
+    const fields = [];
+    if (pf.brand || pf.model) fields.push((pf.brand || '') + ' ' + (pf.model || ''));
+    if (pf.year) fields.push('مدل ' + pf.year);
+    if (pf.mileage) fields.push('کارکرد ' + pf.mileage + ' کیلومتر');
+    if (pf.color) fields.push('رنگ ' + pf.color);
+    if (pf.gearbox) fields.push(pf.gearbox);
+    if (pf.fuel) fields.push(pf.fuel);
+    if (pf.bodyStatus) fields.push(pf.bodyStatus);
+    if (pf.price) fields.push('قیمت ' + new Intl.NumberFormat('fa-IR').format(pf.price) + ' تومان');
+    if (fields.length) parts.push('مشخصات: ' + fields.join(' | '));
+    const result = parts.join('. ');
+    return result.length > 10 ? result : null;
   }
 
   // ══════════════════════════════════════════════════════════════════
