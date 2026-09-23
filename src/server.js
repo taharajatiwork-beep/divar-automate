@@ -408,6 +408,41 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, { mapping: service.getMapping() });
     }
 
+    // ── Browser Control (Puppeteer-based) ─────────────────────────
+    if (method === 'GET' && path === '/api/browser/status') {
+      const browser = (await import('./browser-service.js')).default;
+      return sendJson(res, 200, { ready: browser.ready, port: browser.port });
+    }
+
+    if (method === 'POST' && path === '/api/browser/launch') {
+      requireAuth(user, 'task:create');
+      const browser = (await import('./browser-service.js')).default;
+      if (browser.ready) return sendJson(res, 200, { ok: true, message: 'Browser already running.' });
+      try {
+        await browser.launch();
+        return sendJson(res, 200, { ok: true, message: 'Browser launched.', port: browser.port });
+      } catch (err) {
+        return sendJson(res, 500, { error: 'Failed to launch browser: ' + err.message });
+      }
+    }
+
+    if (method === 'POST' && path === '/api/browser/fill') {
+      requireAuth(user, 'task:create');
+      const browser = (await import('./browser-service.js')).default;
+      if (!browser.ready) return sendJson(res, 400, { error: 'Browser not launched. Call POST /api/browser/launch first.' });
+      const body = await readJson(req);
+      if (!body.productId) return sendJson(res, 400, { error: 'productId الزامی است.' });
+      const product = db.getProduct(body.productId);
+      if (!product) return sendJson(res, 404, { error: 'محصول پیدا نشد.' });
+      try {
+        const automator = (await import('./divar-automator.js')).default;
+        const results = await automator.fillForm(product);
+        return sendJson(res, 200, { ok: true, results });
+      } catch (err) {
+        return sendJson(res, 500, { error: 'Form fill failed: ' + err.message });
+      }
+    }
+
     // ── Bug Report ─────────────────────────────────────────────────
     if (method === 'POST' && path === '/api/bug-report') {
       requireAuth(user, 'products:read');
