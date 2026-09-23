@@ -148,8 +148,9 @@
       .toLowerCase();
   }
 
+  // Returns { success, strategy, fallbackUsed } — strategy = which pass matched
   async function clickDivarDropdownByName(fieldId, optionText, labelText) {
-    if (!optionText) return false;
+    if (!optionText) return { success: false, strategy: 'no-value', fallbackUsed: false };
     labelText = labelText || fieldId;
 
     // Find trigger button — try primary id selector, then fallbacks
@@ -158,12 +159,12 @@
       '#' + CSS.escape(fieldId) + ' button',
       '[id*="' + fieldId + '"]',
     ], labelText + ' trigger');
-    if (!trigger) { warn('field not found:', fieldId); return false; }
+    if (!trigger) { warn('field not found:', fieldId); return { success: false, strategy: 'trigger-not-found', fallbackUsed: false }; }
 
     const before = (trigger.innerText || '').trim();
     if (normalizeOption(before) === normalizeOption(optionText) && before !== 'انتخاب') {
       log('✅ already set:', fieldId, '=', before);
-      return true;
+      return { success: true, strategy: 'already-set', fallbackUsed: false };
     }
 
     trigger.click();
@@ -175,7 +176,7 @@
     const hasExpanded = trigger.getAttribute('aria-expanded') !== null;
     if (hasExpanded && trigger.getAttribute('aria-expanded') !== 'true') {
       warn('field did not open:', fieldId, 'aria-expanded=' + trigger.getAttribute('aria-expanded'));
-      return false;
+      return { success: false, strategy: 'did-not-open', fallbackUsed: false };
     }
     // For action fields, wait a bit for modal to appear
     if (!hasExpanded) await sleep(300);
@@ -188,13 +189,14 @@
     ], labelText + ' modal');
     const modalRows = modal ? modal.querySelectorAll('.kt-base-row').length : 0;
     log('DEBUG modal:', modal ? 'found' : 'NOT FOUND', 'rows:', modalRows);
-    if (!modal) { warn('modal not found:', fieldId); trigger.click(); return false; }
+    if (!modal) { warn('modal not found:', fieldId); trigger.click(); return { success: false, strategy: 'modal-not-found', fallbackUsed: false }; }
 
     // Get all option rows
     const rows = modal.querySelectorAll('.kt-base-row');
     const wanted = normalizeOption(optionText);
     const brandWord = normalizeOption((optionText.split(/\s+/)[0] || ''));
     let matched = null;
+    let matchedStrategy = '';
 
     // Helper: extract title text from a row using fallback chain
     const OPTION_TITLE_SELS = ['.start__title-_UBPtX', 'p[class*="title"]', '.kt-base-row__start p', '.kt-base-row p', 'p'];
@@ -212,7 +214,7 @@
       const titleEl = getOptionTitle(row);
       const txt = normalizeOption(titleEl?.textContent || row.textContent || '');
       if (txt.includes(wanted) || wanted.includes(txt)) {
-        matched = row; log('DEBUG match found:', titleEl?.textContent?.trim() || row.textContent?.trim()); break;
+        matched = row; matchedStrategy = 'pass1-exact'; log('DEBUG match found:', titleEl?.textContent?.trim() || row.textContent?.trim()); break;
       }
     }
     if (!matched) log('DEBUG no match in rows:', [...rows].map(r => {
@@ -226,7 +228,7 @@
         const titleEl = getOptionTitle(row);
         const txt = normalizeOption(titleEl?.textContent || row.textContent || '');
         if (txt.includes(brandWord)) {
-          matched = row; log('DEBUG brand match:', titleEl?.textContent?.trim() || row.textContent?.trim()); break;
+          matched = row; matchedStrategy = 'pass2-brand'; log('DEBUG brand match:', titleEl?.textContent?.trim() || row.textContent?.trim()); break;
         }
       }
     }
@@ -267,13 +269,16 @@
           const t = getOptionTitle(row) || row.querySelector('.start__title-_UBPtX, p');
           const txt = normalizeOption(t?.textContent || row.textContent || '');
           if (txt.includes(wanted) || wanted.includes(txt) || txt.includes(brandWord)) {
-            matched = row; log('search match:', t?.textContent?.trim()); break;
+            matched = row; matchedStrategy = 'pass3-search'; log('search match:', t?.textContent?.trim()); break;
           }
         }
       }
     }
 
-    if (!matched) { warn('option not found:', fieldId, optionText); trigger.click(); return false; }
+    if (!matched) { warn('option not found:', fieldId, optionText); trigger.click(); return { success: false, strategy: 'no-match', fallbackUsed: false }; }
+
+    log('  strategy:', matchedStrategy);
+    const usedFallback = matchedStrategy !== 'pass1-exact';
 
     // Human-like delay before clicking
     await randomDelay();
@@ -293,10 +298,12 @@
     await sleep(700);
     const after = (trigger.innerText || '').trim();
     if (clicked && normalizeOption(after) !== normalizeOption(before) && after !== 'انتخاب') {
-      log('✅ committed:', fieldId, '=', after); return true;
+      log('✅ committed:', fieldId, '=', after);
+      return { success: true, strategy: matchedStrategy, fallbackUsed: usedFallback };
     }
     warn('commit failed:', fieldId, 'clicked:', clicked, 'text:', after);
-    trigger.click(); return false;
+    trigger.click();
+    return { success: false, strategy: matchedStrategy + '-commit-fail', fallbackUsed: usedFallback };
   }
 
   async function fillFields() {
@@ -421,6 +428,8 @@
   async function orchestrate() {
     if (!currentPrefill) return;
     const pf = currentPrefill;
+    const fieldResults = [];
+    const orchStart = Date.now();
 
     // Wait for form (up to 20s)
     let found = false;
@@ -435,14 +444,19 @@
     const filledKeys = new Set();
 
     // 1. Fill text fields (Page 1)
+    let fieldStart = Date.now();
     await randomDelay();
     const titleEl = findTextField('title');
     if (titleEl && pf.title && setTextValue(titleEl, pf.title)) {
       filledKeys.add('title'); filled++;
       log('✅ title:', pf.title);
       highlight(titleEl);
+      fieldResults.push({ field: 'title', strategy: 'setText', fallbackUsed: false, duration: Date.now() - fieldStart, success: true });
+    } else {
+      fieldResults.push({ field: 'title', strategy: 'setText', fallbackUsed: false, duration: Date.now() - fieldStart, success: false });
     }
 
+    fieldStart = Date.now();
     await randomDelay();
     const descEl = findTextField('description');
     const desc = generateDescription(pf);
@@ -450,10 +464,15 @@
       filledKeys.add('description'); filled++;
       log('✅ description:', desc.substring(0, 60));
       highlight(descEl);
+      fieldResults.push({ field: 'description', strategy: 'setText', fallbackUsed: false, duration: Date.now() - fieldStart, success: true });
+    } else {
+      fieldResults.push({ field: 'description', strategy: 'setText', fallbackUsed: false, duration: Date.now() - fieldStart, success: false });
     }
 
     // 2. Upload images (Page 1)
+    fieldStart = Date.now();
     await uploadImages();
+    fieldResults.push({ field: 'images', strategy: 'upload', fallbackUsed: false, duration: Date.now() - fieldStart, success: !!(pf.images?.length) });
 
     log('page 1 done:', filled, 'fields — clicking بعدی...');
     showIndicator(
@@ -505,27 +524,38 @@
     ];
 
     for (const s of selects) {
-      if (!s.value) continue;
+      if (!s.value) { fieldResults.push({ field: s.fieldId, strategy: 'skipped-no-value', fallbackUsed: false, duration: 0, success: false }); continue; }
+      fieldStart = Date.now();
       await randomDelay();
       try {
-        const ok = await clickDivarDropdownByName(s.fieldId, String(s.value));
-        if (ok) selectFilled++;
-      } catch (e) { warn('select error:', s.fieldId, e.message); }
+        const result = await clickDivarDropdownByName(s.fieldId, String(s.value));
+        if (result.success) selectFilled++;
+        fieldResults.push({ field: s.fieldId, strategy: result.strategy, fallbackUsed: result.fallbackUsed, duration: Date.now() - fieldStart, success: result.success });
+      } catch (e) { warn('select error:', s.fieldId, e.message);
+        fieldResults.push({ field: s.fieldId, strategy: 'exception', fallbackUsed: false, duration: Date.now() - fieldStart, success: false });
+      }
     }
 
     // Brand/model
+    fieldStart = Date.now();
     await randomDelay();
     const brandVal = pf.model || pf.brand;
     if (brandVal) {
       try {
-        const ok = await clickDivarDropdownByName('brand_model', String(brandVal), 'برند و مدل');
-        if (ok) selectFilled++;
-      } catch (e) { warn('brand error:', e.message); }
+        const result = await clickDivarDropdownByName('brand_model', String(brandVal), 'برند و مدل');
+        if (result.success) selectFilled++;
+        fieldResults.push({ field: 'brand', strategy: result.strategy, fallbackUsed: result.fallbackUsed, duration: Date.now() - fieldStart, success: result.success });
+      } catch (e) { warn('brand error:', e.message);
+        fieldResults.push({ field: 'brand', strategy: 'exception', fallbackUsed: false, duration: Date.now() - fieldStart, success: false });
+      }
+    } else {
+      fieldResults.push({ field: 'brand', strategy: 'skipped-no-value', fallbackUsed: false, duration: 0, success: false });
     }
 
     
 
     // Mileage (usage) — use fallback chain
+    fieldStart = Date.now();
     await randomDelay();
     const usageEl = findElement([
       '#usage___Input',
@@ -536,7 +566,20 @@
     if (usageEl && pf.mileage && setTextValue(usageEl, String(pf.mileage))) {
       selectFilled++;
       log('✅ usage:', pf.mileage);
+      fieldResults.push({ field: 'mileage', strategy: 'setText', fallbackUsed: false, duration: Date.now() - fieldStart, success: true });
+    } else {
+      fieldResults.push({ field: 'mileage', strategy: usageEl ? 'setText-fail' : 'not-found', fallbackUsed: false, duration: Date.now() - fieldStart, success: false });
     }
+
+    // ── Structured Summary ──────────────────────────────────────────
+    const totalMs = Date.now() - orchStart;
+    const filledCount = fieldResults.filter(r => r.success).length;
+    const failedCount = fieldResults.filter(r => !r.success).length;
+    const fallbacksUsed = fieldResults.filter(r => r.fallbackUsed).length;
+    log(`📊 Summary: ${filledCount} filled, ${failedCount} failed, ${fallbacksUsed} fallbacks used (${totalMs}ms total)`);
+    fieldResults.forEach(r => {
+      log(`  ${r.success ? '✅' : '❌'} ${r.field}: ${r.strategy} (${r.duration}ms)${r.fallbackUsed ? ' [FALLBACK]' : ''}`);
+    });
 
     log('done! text:', filled, 'selects:', selectFilled);
     showIndicator(
