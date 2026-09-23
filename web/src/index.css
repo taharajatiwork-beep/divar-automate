@@ -28,3 +28,99 @@ body {
 .badge-confirmed { background: #065f46; color: #6ee7b7; }
 .badge-rejected { background: #7f1d1d; color: #fca5a5; }
 .badge-needs_review { background: #7c2d12; color: #fdba74; }
+
+/* Toast slide-in animation */
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+/* ─── Animated gradient background for Login ─── */
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.login-bg {
+  background: linear-gradient(
+    135deg,
+    #0a0a14 0%,
+    #0f0f2e 20%,
+    #0a0a14 40%,
+    #121220 60%,
+    #0a0a14 80%,
+    #0e0e28 100%
+  );
+  background-size: 400% 400%;
+  animation: gradientShift 12s ease infinite;
+}
+
+/* ─── Fade-in / slide-up on mount ─── */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  opacity: 0; /* starts hidden, animation fills forward */
+  animation: fadeInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Staggered delay utilities */
+.animate-delay-1 { animation-delay: 0.06s; }
+.animate-delay-2 { animation-delay: 0.12s; }
+.animate-delay-3 { animation-delay: 0.18s; }
+.animate-delay-4 { animation-delay: 0.24s; }
+.animate-delay-5 { animation-delay: 0.30s; }
+.animate-delay-6 { animation-delay: 0.36s; }
+.animate-delay-7 { animation-delay: 0.42s; }
+
+/* ─── Pulse glow for status dots ─── */
+@keyframes pulseGreen {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.5); }
+  50%      { box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); }
+}
+.pulse-green { animation: pulseGreen 2s ease-in-out infinite; }
+
+@keyframes pulseYellow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.5); }
+  50%      { box-shadow: 0 0 0 6px rgba(250, 204, 21, 0); }
+}
+.pulse-yellow { animation: pulseYellow 2s ease-in-out infinite; }
+
+/* ─── Top bar gradient ─── */
+.topbar-gradient {
+  background: linear-gradient(90deg, #111118 0%, #141428 50%, #111118 100%);
+}
+
+/* ─── Browser pill tooltip ─── */
+.browser-pill { position: relative; }
+.browser-pill-tooltip {
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  pointer-events: none;
+}
+.browser-pill:hover .browser-pill-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* ─── Page transition ─── */
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-transition {
+  animation: pageIn 0.25s ease-out;
+}

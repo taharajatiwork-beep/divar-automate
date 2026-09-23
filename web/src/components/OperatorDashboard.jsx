@@ -1,227 +1,389 @@
-import { useState, useEffect } from 'react';
-import BrowserPanel from './BrowserPanel.jsx';
+import { useState, useEffect, useCallback } from 'react';
+import { Globe, Lock, Unlock, CheckCircle, Image as ImageIcon, MapPin, Loader2 } from 'lucide-react';
+import { useToast } from '../ui/index.jsx';
 
-const CAT_ICONS = { 'vehicles': '\u{1F697}', 'mobile-phones': '\u{1F4F1}', 'laptops': '\u{1F4BB}', 'accessories': '\u{1F3A7}' };
-const CAT_LABELS = { 'vehicles': '\u062E\u0648\u062F\u0631\u0648', 'mobile-phones': '\u0645\u0648\u0628\u0627\u06CC\u0644', 'laptops': '\u0644\u067E\u200C\u062A\u0627\u0628', 'accessories': '\u0644\u0648\u0627\u0632\u0645 \u062C\u0627\u0646\u0628\u06CC' };
+const CAT_LABELS = { 'vehicles': '🚗 خودرو', 'mobile-phones': '📱 موبایل', 'laptops': '💻 لپ‌تاپ', 'accessories': '🎧 لوازم جانبی' };
 const LOCK_MS = 30 * 60 * 1000;
 
 function fmtPrice(p) {
-  return p ? new Intl.NumberFormat('fa-IR').format(p) + ' \u062A\u0648\u0645\u0627\u0646' : '\u2014';
+  if (!p) return '—';
+  const n = Number(p);
+  if (n >= 1000000) return (n / 1000000).toFixed(n % 1000000 === 0 ? 0 : 1) + 'M تومان';
+  return new Intl.NumberFormat('fa-IR').format(p) + ' تومان';
 }
 
 function lockCountdown(lockedAt) {
-  if (!lockedAt) return '';
+  if (!lockedAt) return { text: '', pct: 0 };
   const elapsed = Date.now() - new Date(lockedAt).getTime();
   const remaining = Math.max(0, LOCK_MS - elapsed);
-  if (remaining <= 0) return '\u23F0 \u0645\u0646\u0642\u0636\u06CC \u0634\u062F';
+  const pct = Math.min(100, (elapsed / LOCK_MS) * 100);
+  if (remaining <= 0) return { text: '⏰ منقضی شد', pct: 100 };
   const m = Math.floor(remaining / 60000);
   const s = Math.floor((remaining % 60000) / 1000);
-  return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s} \u062B\u0627\u0646\u06CC\u0647`;
+  return { text: `${m}:${String(s).padStart(2, '0')}`, pct };
 }
 
-function lockProgress(lockedAt) {
-  if (!lockedAt) return 0;
-  return Math.min(100, ((Date.now() - new Date(lockedAt).getTime()) / LOCK_MS) * 100);
+function imageUrl(product) {
+  if (product.images?.[0]) {
+    const img = product.images[0];
+    if (img.startsWith('/images/')) return img;
+    if (img.startsWith('http')) return img;
+  }
+  const id = (product.id || '').replace(/\D/g, '').padStart(3, '0');
+  return `/images/P${id}_01.jpg`;
 }
 
-function Steps({ step }) {
-  const labels = ['\u0627\u0646\u062A\u062E\u0627\u0628 \u0645\u062D\u0635\u0648\u0644', '\u0628\u0627\u0632 \u06A9\u0631\u062F\u0646 \u062F\u06CC\u0648\u0627\u0631', '\u062B\u0628\u062A \u0646\u0647\u0627\u06CC\u06CC'];
+/* --- Browser Status Bar --- */
+function BrowserBar({ token }) {
+  const [status, setStatus] = useState(null);
+  const [launching, setLaunching] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    async function check() {
+      try {
+        const r = await fetch('/api/browser/status', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        if (r.ok && alive) setStatus(await r.json());
+      } catch { if (alive) setStatus({ ready: false }); }
+    }
+    check();
+    const iv = setInterval(check, 5000);
+    return () => { alive = false; clearInterval(iv); };
+  }, [token]);
+
+  const launch = async () => {
+    setLaunching(true);
+    try {
+      const r = await fetch('/api/browser/launch', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      if (r.ok) setStatus(d);
+    } catch {}
+    setLaunching(false);
+  };
+
+  const ready = status?.ready;
+
   return (
-    <div className="flex items-center gap-1 mb-6">
-      {labels.map((t, i) => (
-        <div key={i} className="flex items-center gap-1">
-          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-            i < step ? 'bg-green-600 text-white' :
-            i === step ? 'bg-blue-600 text-white ring-2 ring-blue-400/50 animate-pulse' :
-            'bg-gray-700 text-gray-500'
-          }`}>{i + 1}</div>
-          <span className={`text-xs hidden sm:inline transition-colors ${
-            i === step ? 'text-white font-bold' : 'text-gray-500'
-          }`}>{t}</span>
-          {i < labels.length - 1 && <div className={`w-6 h-0.5 mx-1 ${i < step ? 'bg-green-600' : 'bg-gray-700'}`} />}
-        </div>
-      ))}
+    <div className="flex items-center gap-3 px-4 py-2.5 bg-gray-900/80 backdrop-blur-sm rounded-xl border border-gray-700/50">
+      <div className="flex items-center gap-2">
+        <div className={`w-2.5 h-2.5 rounded-full ${ready ? 'bg-emerald-400 pulse-green' : 'bg-gray-600'}`} />
+        <Globe size={14} className={ready ? 'text-emerald-400' : 'text-gray-600'} />
+        <span className={`text-xs font-medium ${ready ? 'text-emerald-400' : 'text-gray-500'}`}>
+          {ready ? 'مرورگر متصل' : 'مرورگر قطع'}
+        </span>
+      </div>
+      {ready && status.currentUrl && (
+        <span className="text-[10px] text-gray-600 font-mono truncate max-w-[200px]">
+          {status.currentUrl.replace('https://', '')}
+        </span>
+      )}
+      <div className="flex-1" />
+      {!ready && (
+        <button onClick={launch} disabled={launching} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg text-xs text-white font-medium transition-colors">
+          {launching ? <Loader2 size={12} className="animate-spin" /> : '▶'}
+          راه‌اندازی مرورگر
+        </button>
+      )}
     </div>
   );
 }
 
-function ProductCard({ product, onAction, view }) {
-  const [loading, setLoading] = useState(false);
-  const [countdown, setCountdown] = useState('');
-  const [progress, setProgress] = useState(0);
-  const isMine = view === 'mine';
-  const isOther = view === 'other';
+/* --- Active Work Card --- */
+function ActiveCard({ product, onAction, token }) {
+  const { addToast } = useToast();
+  const [step, setStep] = useState(0);
+  const [fillResults, setFillResults] = useState(null);
+  const [countdown, setCountdown] = useState({ text: '', pct: 0 });
 
   useEffect(() => {
-    if (!isMine || !product.locked_at) return;
-    const update = () => {
-      setCountdown(lockCountdown(product.locked_at));
-      setProgress(lockProgress(product.locked_at));
-    };
-    update();
-    const iv = setInterval(update, 1000);
-    return () => clearInterval(iv);
-  }, [isMine, product.locked_at]);
+    if (product.locked_at) {
+      const iv = setInterval(() => setCountdown(lockCountdown(product.locked_at)), 1000);
+      return () => clearInterval(iv);
+    }
+  }, [product.locked_at]);
 
-  async function doAction(action) {
-    setLoading(true);
-    await onAction(action, product.id);
-    setLoading(false);
-  }
+  const doOpen = async () => {
+    try {
+      setStep(1);
+      addToast('🔄 در حال اتصال به Chrome...', 'info');
+      const h = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 
-  const attrs = product.attributes || {};
-  const attrEntries = Object.entries(attrs).filter(([, v]) => v);
+      const launchR = await fetch('/api/browser/launch', { method: 'POST', headers: h });
+      const launchD = await launchR.json();
+      if (!launchR.ok) { setStep(0); addToast(launchD.error || 'خطا در اتصال Chrome', 'error'); return; }
+
+      addToast('🌐 باز کردن فرم دیوار...', 'info');
+      await fetch('/api/browser/navigate', { method: 'POST', headers: h, body: JSON.stringify({ url: 'https://divar.ir/new' }) });
+
+      setStep(2);
+      addToast('⏳ در حال پر کردن فرم...', 'info');
+      const fillR = await fetch('/api/browser/fill', { method: 'POST', headers: h, body: JSON.stringify({ productId: product.id }) });
+      const fillD = await fillR.json();
+
+      if (fillR.ok && fillD.results) {
+        setFillResults(fillD.results);
+        setStep(3);
+        const filled = fillD.results.filter(r => r.status === 'filled' || r.status === 'already-set').length;
+        addToast(`✅ فرم پر شد! ${filled} فیلد خودکار. مکان و تماس رو دستی تکمیل کن.`, 'success');
+      } else {
+        setStep(0);
+        addToast(fillD.error || 'خطا در پر کردن فرم', 'error');
+      }
+    } catch (e) {
+      setStep(0);
+      addToast('خطا: ' + e.message, 'error');
+    }
+  };
+
+  const doComplete = async () => {
+    try {
+      const r = await fetch(`/api/products/${product.id}/complete`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      if (r.ok) { addToast('🎉 ثبت تأیید شد!', 'success'); onAction('refresh'); }
+      else addToast(d.error || 'خطا', 'error');
+    } catch { addToast('خطا در ارتباط با سرور', 'error'); }
+  };
+
+  const filledFields = fillResults?.filter(r => r.status === 'filled' || r.status === 'already-set' || r.status === 'auto-filled-match') || [];
+  const failedFields = fillResults?.filter(r => r.status !== 'filled' && r.status !== 'already-set' && r.status !== 'auto-filled-match' && r.status !== 'manual') || [];
 
   return (
-    <div className={`rounded-xl border p-4 transition-all duration-200 ${
-      isMine ? 'bg-gradient-to-br from-blue-950/60 to-indigo-950/40 border-blue-500/50 shadow-lg shadow-blue-900/20' :
-      isOther ? 'bg-gray-800/30 border-gray-700/30 opacity-50' :
-      'bg-gray-800/50 border-gray-700/50 hover:border-gray-500/50 hover:bg-gray-800/70'
-    }`}>
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">{CAT_ICONS[product.category] || '\u{1F4E6}'}</span>
-          <span className="text-[10px] text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded">
-            {CAT_LABELS[product.category] || product.category}
-          </span>
+    <div className="bg-gradient-to-br from-blue-950/60 to-indigo-950/40 border border-blue-500/40 rounded-2xl overflow-hidden shadow-lg shadow-blue-900/20">
+      <div className="flex gap-4 p-4">
+        <div className="w-24 h-24 rounded-xl bg-gray-800 overflow-hidden flex-shrink-0 relative">
+          <img src={imageUrl(product)} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+          <div className="absolute inset-0 flex items-center justify-center text-gray-700"><ImageIcon size={24} /></div>
         </div>
-        {isMine && <span className="text-xs text-blue-300 font-mono font-bold">{countdown}</span>}
-        {isOther && <span className="text-[10px] text-gray-500">{'\u{1F512}'} {product.locked_by_name || product.locked_by}</span>}
-      </div>
-      {isMine && (
-        <div className="w-full h-1 bg-gray-700 rounded-full mb-3 overflow-hidden">
-          <div className={`h-full rounded-full transition-all duration-1000 ${progress > 80 ? 'bg-red-500' : progress > 50 ? 'bg-yellow-500' : 'bg-blue-500'}`} style={{ width: `${progress}%` }} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full">{CAT_LABELS[product.category]}</span>
+          </div>
+          <h3 className="text-sm font-bold text-white mb-1 truncate">{product.title}</h3>
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-emerald-400 font-bold">{fmtPrice(product.price)}</span>
+            <span className="text-gray-500">•</span>
+            <span className="text-gray-400">{product.city}</span>
+          </div>
+          <div className="flex flex-wrap gap-1 mt-2">
+            {Object.entries(product.attributes || {}).slice(0, 4).map(([k, v]) => (
+              <span key={k} className="text-[10px] bg-gray-800/60 text-gray-400 px-1.5 py-0.5 rounded">{v}</span>
+            ))}
+          </div>
         </div>
-      )}
-      <h3 className="text-sm font-bold text-white mb-1 leading-relaxed line-clamp-1">{product.title}</h3>
-      <p className="text-xs text-gray-400 mb-2 line-clamp-2">{product.description}</p>
-      <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
-        <span className="text-green-400 font-bold">{fmtPrice(product.price)}</span>
-        <span>{'\u2022'}</span>
-        <span>{product.city}</span>
-        {product.images?.length > 0 && <><span>{'\u2022'}</span><span>{'\u{1F4F7}'} {product.images.length}</span></>}
+        <div className="text-left flex-shrink-0">
+          <div className="text-xs font-mono text-blue-300 font-bold">{countdown.text}</div>
+          <div className="w-16 h-1 bg-gray-700 rounded-full mt-1 overflow-hidden">
+            <div className={`h-full rounded-full transition-all duration-1000 ${countdown.pct > 80 ? 'bg-red-500' : countdown.pct > 50 ? 'bg-yellow-500' : 'bg-blue-500'}`} style={{ width: `${countdown.pct}%` }} />
+          </div>
+        </div>
       </div>
-      {attrEntries.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-3">
-          {attrEntries.slice(0, 5).map(([k, v]) => (
-            <span key={k} className="text-[10px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded">{v}</span>
+
+      {/* Step indicator */}
+      <div className="px-4 pb-2">
+        <div className="flex items-center gap-2 text-[10px]">
+          {[0, 1, 2].map(i => (
+            <div key={i} className={`flex items-center gap-1 ${i < step ? 'text-emerald-400' : i === step && step > 0 ? 'text-blue-400 animate-pulse' : 'text-gray-600'}`}>
+              <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${i < step ? 'bg-emerald-600 text-white' : i === step && step > 0 ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-500'}`}>
+                {i < step ? '✓' : i + 1}
+              </div>
+              <span>{i === 0 ? 'اتصال' : i === 1 ? 'پرکردن' : 'تکمیل'}</span>
+              {i < 2 && <div className={`w-4 h-0.5 ${i < step ? 'bg-emerald-600' : 'bg-gray-700'}`} />}
+            </div>
           ))}
         </div>
+      </div>
+
+      {/* Fill results */}
+      {fillResults && (
+        <div className="px-4 pb-2">
+          <div className="bg-gray-900/60 rounded-lg p-2.5 space-y-1">
+            {filledFields.map((r, i) => (
+              <div key={`f${i}`} className="flex items-center gap-1.5 text-[10px] text-emerald-400">
+                <CheckCircle size={10} />
+                <span>{r.field}: {r.status === 'already-set' ? 'از قبل موجود' : r.status === 'auto-filled-match' ? 'خودکار' : 'پر شد'}</span>
+              </div>
+            ))}
+            {failedFields.map((r, i) => (
+              <div key={`e${i}`} className="flex items-center gap-1.5 text-[10px] text-amber-400">
+                <MapPin size={10} />
+                <span>{r.field}: نیاز به ورود دستی</span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
-      <div className="flex flex-wrap gap-1.5">
-        {view === 'available' && (
-          <button onClick={() => doAction('lock')} disabled={loading} className="flex-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg text-xs text-white font-medium transition-colors">
-            {loading ? '...' : '\u{1F512} \u0642\u0641\u0644 \u06A9\u0631\u062F\u0646'}
+
+      {/* Action buttons */}
+      <div className="px-4 pb-4 flex gap-2">
+        {step === 0 && (
+          <button onClick={doOpen} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm text-white font-medium transition-colors">
+            <Globe size={16} />
+            شروع ثبت آگهی
           </button>
         )}
-        {isMine && (
+        {step === 1 && (
+          <div className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600/30 rounded-xl text-sm text-blue-300">
+            <Loader2 size={16} className="animate-spin" />
+            در حال اتصال...
+          </div>
+        )}
+        {step === 2 && (
+          <div className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600/30 rounded-xl text-sm text-blue-300">
+            <Loader2 size={16} className="animate-spin" />
+            در حال پر کردن فرم...
+          </div>
+        )}
+        {step === 3 && (
           <>
-            <button onClick={() => doAction('open')} disabled={loading} className="flex-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg text-xs text-white font-medium transition-colors">
-              {loading ? '...' : '\u{1F310} \u0628\u0627\u0632 \u06A9\u0631\u062F\u0646 \u062F\u06CC\u0648\u0627\u0631'}
+            <button onClick={doComplete} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-500 rounded-xl text-sm text-white font-medium transition-colors">
+              <CheckCircle size={16} />
+              ✅ ثبت تأیید شد
             </button>
-            <button onClick={() => doAction('complete')} disabled={loading} className="flex-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-lg text-xs text-white font-medium transition-colors">
-              {loading ? '...' : '\u2705 \u062B\u0628\u062A \u0634\u062F'}
-            </button>
-            <button onClick={() => doAction('unlock')} disabled={loading} className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 rounded-lg text-xs text-gray-400 transition-colors">
-              {'\u21A9'} \u0622\u0632\u0627\u062F
+            <button onClick={() => { setStep(0); setFillResults(null); }} className="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm text-gray-300 transition-colors">
+              ↺ دوباره
             </button>
           </>
         )}
-        {isOther && <span className="text-[10px] text-gray-600">\u063A\u06CC\u0631\u0642\u0627\u0628\u0644 \u0639\u0645\u0644\u06CC\u0627\u062A</span>}
+        <button onClick={() => { if (confirm('آزاد کردن محصول؟')) onAction('unlock', product.id); }} className="px-3 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl text-xs text-gray-400 transition-colors" title="آزاد کردن">
+          <Unlock size={14} />
+        </button>
       </div>
     </div>
   );
 }
 
+/* --- Available Product Card --- */
+function AvailableCard({ product, onLock }) {
+  const [loading, setLoading] = useState(false);
+
+  return (
+    <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl overflow-hidden hover:border-gray-500/50 hover:bg-gray-800/70 transition-all duration-200 group">
+      <div className="relative h-32 bg-gray-800 overflow-hidden">
+        <img src={imageUrl(product)} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onError={(e) => { e.target.style.display = 'none'; }} />
+        <div className="absolute inset-0 flex items-center justify-center text-gray-700"><ImageIcon size={32} /></div>
+        <div className="absolute top-2 right-2">
+          <span className="text-[10px] bg-gray-900/80 backdrop-blur-sm text-gray-300 px-2 py-0.5 rounded-full">{CAT_LABELS[product.category]}</span>
+        </div>
+        <div className="absolute bottom-2 left-2">
+          <span className="text-sm font-bold text-emerald-400 bg-gray-900/80 backdrop-blur-sm px-2 py-0.5 rounded-lg">{fmtPrice(product.price)}</span>
+        </div>
+      </div>
+      <div className="p-3">
+        <h3 className="text-sm font-bold text-white mb-1 truncate">{product.title}</h3>
+        <p className="text-[11px] text-gray-400 mb-2 line-clamp-1">{product.description}</p>
+        <div className="flex items-center gap-2 text-[10px] text-gray-500 mb-3">
+          <span className="flex items-center gap-1"><MapPin size={10} />{product.city}</span>
+        </div>
+        <div className="flex flex-wrap gap-1 mb-3">
+          {Object.entries(product.attributes || {}).slice(0, 3).map(([k, v]) => (
+            <span key={k} className="text-[10px] bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded">{v}</span>
+          ))}
+        </div>
+        <button onClick={async () => { setLoading(true); await onLock(product.id); setLoading(false); }} disabled={loading}
+          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg text-xs text-white font-medium transition-colors">
+          {loading ? <Loader2 size={12} className="animate-spin" /> : <Lock size={12} />}
+          🔒 قفل کردن
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* --- Main Dashboard --- */
 export default function OperatorDashboard({ token, user }) {
   const [board, setBoard] = useState({ available: [], locked: [], posted: [] });
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [msg, setMsg] = useState(null);
+  const { addToast } = useToast();
   const h = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
   const myLocked = board.locked.filter(p => p.locked_by === user.id);
   const otherLocked = board.locked.filter(p => p.locked_by !== user.id);
 
-  async function loadBoard() {
+  const loadBoard = useCallback(async () => {
     try { const r = await fetch('/api/products/board', { headers: h }); if (r.ok) setBoard(await r.json()); } catch {}
     setLoading(false);
-  }
+  }, [token]);
 
-  useEffect(() => { loadBoard(); const iv = setInterval(loadBoard, 5000); return () => clearInterval(iv); }, []);
+  useEffect(() => { loadBoard(); const iv = setInterval(loadBoard, 5000); return () => clearInterval(iv); }, [loadBoard]);
 
-  async function doAction(action, id) {
-    setMsg(null);
-    if (action === 'lock') {
-      try { const r = await fetch(`/api/products/${id}/lock`, { method: 'POST', headers: h }); const d = await r.json(); if (!r.ok) { setMsg({ type: 'error', text: d.error }); return; } setMsg({ type: 'success', text: '\u2705 \u0645\u062D\u0635\u0648\u0644 \u0642\u0641\u0644 \u0634\u062F! \u062D\u0627\u0644\u0627 \u00AB\u0628\u0627\u0632 \u06A9\u0631\u062F\u0646 \u062F\u06CC\u0648\u0627\u0631\u00BB \u0631\u0648 \u0628\u0632\u0646.' }); loadBoard(); } catch { setMsg({ type: 'error', text: '\u062E\u0637\u0627.' }); }
-    }
-    if (action === 'unlock') {
-      if (!confirm('\u0645\u0637\u0645\u0626\u0646\u06CC\u061F')) return;
-      try { await fetch(`/api/products/${id}/unlock`, { method: 'POST', headers: h }); setMsg({ type: 'success', text: '\u0642\u0641\u0644 \u0628\u0627\u0632 \u0634\u062F.' }); } catch {}
-      loadBoard();
-    }
-    if (action === 'complete') {
-      if (!confirm('\u0622\u06AF\u0647\u06CC \u062B\u0628\u062A \u0634\u062F\u061F')) return;
-      try { const r = await fetch(`/api/products/${id}/complete`, { method: 'POST', headers: h }); const d = await r.json(); if (!r.ok) { setMsg({ type: 'error', text: d.error }); return; } setMsg({ type: 'success', text: '\u{1F389} \u062B\u0628\u062A \u0634\u062F!' }); loadBoard(); } catch { setMsg({ type: 'error', text: '\u062E\u0637\u0627.' }); }
-    }
-    if (action === 'open') {
-      try {
-        setMsg({ type: 'info', text: '🔄 در حال اتصال به Chrome...' });
-        // Step 1: Connect to Chrome
-        const launchRes = await fetch('/api/browser/launch', { method: 'POST', headers: h });
-        const launchData = await launchRes.json();
-        if (!launchRes.ok) { setMsg({ type: 'error', text: launchData.error || 'خطا در اتصال Chrome' }); return; }
-        // Step 2: Navigate to divar.ir/new
-        await fetch('/api/browser/navigate', { method: 'POST', headers: h, body: JSON.stringify({ url: 'https://divar.ir/new' }) });
-        // Step 3: Auto-fill the form
-        setMsg({ type: 'info', text: '⏳ در حال پر کردن فرم...' });
-        const fillRes = await fetch('/api/browser/fill', { method: 'POST', headers: h, body: JSON.stringify({ productId: id }) });
-        const fillData = await fillRes.json();
-        if (!fillRes.ok) { setMsg({ type: 'error', text: fillData.error || 'خطا در پر کردن فرم' }); return; }
-        setMsg({ type: 'success', text: `✅ فرم پر شد! ${fillData.results?.filter(r => r.status === 'filled').length || 0} فیلد خودکار. مکان و تماس رو دستی تکمیل کنید.` });
-        loadBoard();
-      } catch (e) { setMsg({ type: 'error', text: 'خطا: ' + e.message }); }
-    }
-  }
+  const handleLock = async (id) => {
+    try {
+      const r = await fetch(`/api/products/${id}/lock`, { method: 'POST', headers: h });
+      const d = await r.json();
+      if (r.ok) { addToast('✅ محصول قفل شد!', 'success'); loadBoard(); }
+      else addToast(d.error || 'خطا', 'error');
+    } catch { addToast('خطا در ارتباط با سرور', 'error'); }
+  };
+
+  const handleAction = (action) => {
+    if (action === 'refresh') loadBoard();
+  };
 
   const filtered = board.available.filter(p => {
-    if (category !== 'all' && p.category !== category) return false;
-    if (search) { const q = search.toLowerCase(); return (p.title || '').toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q) || (p.attributes?.brand || '').toLowerCase().includes(q) || (p.attributes?.model || '').toLowerCase().includes(q); }
+    if (search) { const q = search.toLowerCase(); return (p.title || '').toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q); }
     return true;
   });
 
   return (
-    <div dir="rtl" className="max-w-6xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-white mb-1">{'\u{1F680}'} \u067E\u0646\u0644 \u0622\u06AF\u0647\u06CC\u200C\u06AF\u0630\u0627\u0631\u06CC</h1>
-        <p className="text-sm text-gray-400">\u0645\u062D\u0635\u0648\u0644 \u0631\u0648 \u0627\u0646\u062A\u062E\u0627\u0628 \u06A9\u0646 {'\u2192'} \u0642\u0641\u0644 \u06A9\u0646 {'\u2192'} \u0641\u0631\u0645 \u0631\u0648 \u067E\u0631 \u06A9\u0646 {'\u2192'} \u062B\u0628\u062A \u06A9\u0646.</p>
-      </div>
-      <Steps step={myLocked.length > 0 ? 1 : 0} />
-      {msg && <div className={`px-4 py-3 rounded-lg text-sm ${msg.type === 'error' ? 'bg-red-900/40 text-red-300 border border-red-700/50' : msg.type === 'info' ? 'bg-blue-900/40 text-blue-300 border border-blue-700/50' : 'bg-emerald-900/40 text-emerald-300 border border-emerald-700/50'}`}>{msg.text}</div>}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-1"><BrowserPanel token={token} /></div>
-        <div className="lg:col-span-2">
-          {myLocked.length > 0 ? (
-            <div>
-              <div className="flex items-center gap-2 mb-3"><div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" /><h2 className="text-sm font-bold text-blue-400">{'\u06A9\u0627\u0631 \u062C\u0627\u0631\u06CC'} ({myLocked.length})</h2></div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{myLocked.map(p => <ProductCard key={p.id} product={p} onAction={doAction} view="mine" />)}</div>
-            </div>
-          ) : <div className="text-center text-gray-600 py-8 text-sm">{'\u0645\u062D\u0635\u0648\u0644\u06CC \u0642\u0641\u0644 \u0646\u0634\u062F\u0647 \u2014 \u0627\u0632 \u0644\u06CC\u0633\u062A \u067E\u0627\u06CC\u06CC\u0646 \u06CC\u06A9\u06CC \u0631\u0648 \u0642\u0641\u0644 \u06A9\u0646'}</div>}
+    <div dir="rtl" className="max-w-6xl mx-auto space-y-5">
+      <BrowserBar token={token} />
+
+      {myLocked.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            <h2 className="text-sm font-bold text-blue-400">📋 کار جاری ({myLocked.length})</h2>
+          </div>
+          {myLocked.map(p => <ActiveCard key={p.id} product={p} onAction={handleAction} token={token} />)}
         </div>
-      </div>
-      <div>
-        <h2 className="text-sm font-bold text-gray-300 mb-2">{'\u{1F4E6}'} \u0645\u062D\u0635\u0648\u0644\u0627\u062A \u0622\u0645\u0627\u062F\u0647 ({filtered.length})</h2>
-        <div className="flex gap-3 mb-4 flex-wrap">
-          <input type="text" placeholder="{'\u{1F50D}'} \u062C\u0633\u062A\u062C\u0648..." value={search} onChange={e => setSearch(e.target.value)} className="flex-1 min-w-[200px] bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
-          <select value={category} onChange={e => setCategory(e.target.value)} className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white">
-            <option value="all">{'\u0647\u0645\u0647'}</option>
-            <option value="vehicles">{'\u{1F697}'} \u062E\u0648\u062F\u0631\u0648</option>
-          </select>
+      )}
+
+      {!loading && myLocked.length === 0 && (
+        <div className="text-center py-6 bg-gray-900/30 rounded-xl border border-gray-700/30">
+          <div className="text-3xl mb-2">📦</div>
+          <p className="text-sm text-gray-400">محصولی قفل نشده</p>
+          <p className="text-xs text-gray-600 mt-1">از لیست پایین یک محصول انتخاب کنید</p>
         </div>
-        {loading ? <div className="text-center text-gray-500 py-12">{'\u23F3'}</div> : filtered.length === 0 ? <div className="text-center text-gray-500 py-12">{search ? '\u067E\u06CC\u062F\u0627 \u0646\u0634\u062F' : '\u0647\u0645\u0647 \u0642\u0641\u0644 \u0634\u062F\u0646'}</div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{filtered.map(p => <ProductCard key={p.id} product={p} onAction={doAction} view="available" />)}</div>}
+      )}
+
+      <div>
+        <h2 className="text-sm font-bold text-gray-300 mb-3">📦 محصولات آماده ({filtered.length})</h2>
+        <input type="text" placeholder="🔍 جستجو..." value={search} onChange={e => setSearch(e.target.value)}
+          className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 mb-3" />
+        {loading ? (
+          <div className="text-center text-gray-500 py-12">⏳</div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-8 bg-gray-900/30 rounded-xl border border-gray-700/30">
+            <div className="text-3xl mb-2">🔍</div>
+            <p className="text-sm text-gray-400">{search ? 'پیدا نشد' : 'همه آگهی شده'}</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtered.map(p => <AvailableCard key={p.id} product={p} onLock={handleLock} />)}
+          </div>
+        )}
       </div>
-      {otherLocked.length > 0 && <div className="opacity-50"><h2 className="text-xs font-bold text-gray-500 mb-2">{'\u{1F512}'} \u0642\u0641\u0644\u200C\u0634\u062F\u0647 \u062A\u0648\u0636\u0627\u06CC \u0633\u0627\u06CC\u0631\u06CC\u0646</h2><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">{otherLocked.map(p => <ProductCard key={p.id} product={p} onAction={doAction} view="other" />)}</div></div>}
-      {board.posted.length > 0 && <div className="opacity-30"><h2 className="text-xs font-bold text-gray-500 mb-2">{'\u2705'} \u062B\u0628\u062A\u200C\u0634\u062F\u0647 ({board.posted.length})</h2></div>}
+
+      {otherLocked.length > 0 && (
+        <div className="opacity-50">
+          <h2 className="text-xs font-bold text-gray-500 mb-2">🔒 قفل‌شده توسط سایرین</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {otherLocked.map(p => (
+              <div key={p.id} className="bg-gray-800/30 border border-gray-700/30 rounded-xl p-3 opacity-60">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] text-gray-600">{CAT_LABELS[p.category]}</span>
+                  <span className="text-[10px] text-gray-600">🔒 {p.locked_by_name || p.locked_by}</span>
+                </div>
+                <h3 className="text-xs font-bold text-gray-300 truncate">{p.title}</h3>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {board.posted.length > 0 && (
+        <div className="text-center text-[10px] text-gray-600 py-2">✅ {board.posted.length} آگهی ثبت شده</div>
+      )}
     </div>
   );
 }
