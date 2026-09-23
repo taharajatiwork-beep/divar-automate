@@ -5,6 +5,9 @@
   "version": "0.1.0",
   "permissions": ["activeTab", "storage", "tabs", "debugger", "scripting"],
   "host_permissions": ["http://localhost:3000/*", "https://divar.ir/*"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'self' http://localhost:3000 https://divar.ir"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

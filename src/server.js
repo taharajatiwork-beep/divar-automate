@@ -19,14 +19,66 @@ const quotaService = createQuotaService();
 const imageService = createImageService();
 const authenticate = authMiddleware(authService);
 
+// ─── Security ───────────────────────────────────────────────────────
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:*,chrome-extension://*').split(',');
+
+function getCorsOrigin(req) {
+  const origin = req.headers.origin || '';
+  // chrome-extension:// has dynamic IDs, match prefix
+  if (ALLOWED_ORIGINS.some(o => {
+    if (o.endsWith('*')) return origin.startsWith(o.slice(0, -1));
+    return origin === o;
+  })) return origin;
+  return ALLOWED_ORIGINS[0] || 'http://localhost:3000';
+}
+
+// ─── Rate Limiting (in-memory, per-IP, 60 req/min on auth) ──────────
+const RATE_LIMIT_WINDOW = 60_000;
+const RATE_LIMIT_MAX = 60;
+const rateLimitMap = new Map();
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW) {
+    rateLimitMap.set(ip, { windowStart: now, count: 1 });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= RATE_LIMIT_MAX;
+}
+
+// Cleanup stale entries every 5 min
+setInterval(() => {
+  const cutoff = Date.now() - RATE_LIMIT_WINDOW * 2;
+  for (const [ip, entry] of rateLimitMap) {
+    if (entry.windowStart < cutoff) rateLimitMap.delete(ip);
+  }
+}, 300_000);
+
+// ─── Request Body Size Limit ───────────────────────────────────────
+const MAX_BODY_SIZE = 512 * 1024; // 512 KB
+
+// ─── Security Headers ──────────────────────────────────────────────
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+};
+
 // ─── Helpers ────────────────────────────────────────────────────────
 function sendJson(res, code, body, extraHeaders = {}) {
+  const corsOrigin = extraHeaders._corsOrigin || 'http://localhost:3000';
+  const { _corsOrigin, ...cleanHeaders } = extraHeaders;
   res.writeHead(code, {
     'content-type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': corsOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    ...extraHeaders
+    ...SECURITY_HEADERS,
+    ...cleanHeaders
   });
   res.end(JSON.stringify(body));
 }
@@ -34,7 +86,16 @@ function sendJson(res, code, body, extraHeaders = {}) {
 async function readJson(req) {
   return new Promise((resolve, reject) => {
     let body = '';
-    req.on('data', c => { body += c; });
+    let totalSize = 0;
+    req.on('data', c => {
+      totalSize += c.length;
+      if (totalSize > MAX_BODY_SIZE) {
+        req.destroy();
+        reject(new Error('درخواست بیش از حد بزرگ است.'));
+        return;
+      }
+      body += c;
+    });
     req.on('end', () => { try { resolve(body ? JSON.parse(body) : {}); } catch { reject(new Error('JSON نامعتبر')); } });
     req.on('error', reject);
   });
@@ -49,10 +110,12 @@ function requireAuth(user, perm) {
 const server = createServer(async (req, res) => {
   // ── CORS preflight ───────────────────────────────────────────
   if (req.method === 'OPTIONS') {
+    const corsOrigin = getCorsOrigin(req);
     res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': corsOrigin,
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      ...SECURITY_HEADERS,
     });
     return res.end();
   }
@@ -60,6 +123,12 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
   const method = req.method;
   const path = url.pathname;
+
+  // ── Rate limit per IP ────────────────────────────────────────
+  const clientIp = req.socket?.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
+  if (!checkRateLimit(clientIp)) {
+    return sendJson(res, 429, { error: 'درخواست‌های زیادی ارسال شده. لطفاً صبر کنید.' });
+  }
 
   try {
     // ── Serve images (no auth needed) ────────────────────────────
@@ -74,7 +143,7 @@ const server = createServer(async (req, res) => {
         const data = readFileSync(imgPath);
         const ext = imgPath.split('.').pop().toLowerCase();
         const mime = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' }[ext] || 'application/octet-stream';
-        res.writeHead(200, { 'content-type': mime, 'access-control-allow-origin': '*', 'cache-control': 'public, max-age=86400' });
+        res.writeHead(200, { 'content-type': mime, 'access-control-allow-origin': getCorsOrigin(req), 'cache-control': 'public, max-age=86400', ...SECURITY_HEADERS });
         return res.end(data);
       }
       return sendJson(res, 404, { error: 'تصویر پیدا نشد.' });
@@ -356,8 +425,12 @@ const server = createServer(async (req, res) => {
 
     return sendJson(res, 404, { error: 'مسیر پیدا نشد.' });
   } catch (err) {
-    const code = err.message.includes('احراز') || err.message.includes('دسترسی') ? 403 : 400;
-    return sendJson(res, code, { error: err.message });
+    const isAuthError = err.message.includes('احراز') || err.message.includes('دسترسی');
+    const isSizeError = err.message.includes('بیش از حد');
+    const code = isAuthError ? 403 : isSizeError ? 413 : 400;
+    // Don't leak internal error details to clients
+    const safeMsg = isAuthError || isSizeError ? err.message : 'خطای سرور.';
+    return sendJson(res, code, { error: safeMsg });
   }
 });
 

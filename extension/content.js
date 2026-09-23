@@ -1,5 +1,5 @@
-// ─── Content Script v4 — Divar Car Form Auto-Fill ────────────────────
-// Fills car ad form on divar.ir/new: text fields + select dropdowns + description.
+// ─── Content Script v5 — Divar Car Form Auto-Fill ────────────────────
+// Fills car ad form on divar.ir/new: text fields + select dropdowns + price + description.
 // NEVER clicks "ثبت آگهی" — operator clicks submit.
 
 (function () {
@@ -39,7 +39,7 @@
   };
 
   // ══════════════════════════════════════════════════════════════════
-  // TEXT FIELD DETECTION — name/placeholder only (no parent walk)
+  // TEXT FIELD DETECTION — name/placeholder/id only (no parent walk)
   // ══════════════════════════════════════════════════════════════════
   function findTextField(key) {
     const cfg = FIELDS[key];
@@ -56,6 +56,11 @@
     for (const el of all) {
       const ph = (el.placeholder || '').toLowerCase();
       if (cfg.ph && cfg.ph.some(k => ph.includes(k.toLowerCase()))) return el;
+    }
+    // Strategy 3: id-based (Divar uses #Price___Input pattern)
+    for (const el of all) {
+      const id = (el.id || '').toLowerCase();
+      if (cfg.names.some(k => id.includes(k.toLowerCase()))) return el;
     }
     return null;
   }
@@ -352,7 +357,7 @@
       
       { name: 'year',      value: pf.year },
       { name: 'color',     value: pf.color },
-      { name: 'body_status', value: 'سالم و بی‌خط و خش' },
+      { name: 'body_status', value: 'سالم و بی\u200cخط و خش' },
       { name: 'gearbox',   value: pf.gearbox },
     ];
 
@@ -413,7 +418,7 @@
     if (!images?.length) return;
     const div = document.createElement('div');
     div.style.cssText = 'position:fixed;top:80px;left:20px;z-index:999999;background:#1e3a5f;color:white;padding:16px;border-radius:12px;font-family:Vazirmatn;font-size:13px;direction:rtl;box-shadow:0 4px 20px rgba(0,0,0,0.4);max-width:300px;line-height:1.8';
-    div.innerHTML = '<div style="font-weight:bold;margin-bottom:8px">📸 عکس‌ها رو دستی آپلود کن:</div>';
+    div.innerHTML = '<div style="font-weight:bold;margin-bottom:8px">📸 عکس\u200cها رو دستی آپلود کن:</div>';
     images.forEach((url, i) => {
       const fullUrl = url.startsWith('http') ? url : 'http://localhost:3000' + url;
       div.innerHTML += '<a href="' + fullUrl + '" target="_blank" download style="color:#60a5fa;display:block;margin:4px 0">دانلود عکس ' + (i+1) + '</a>';
@@ -423,7 +428,38 @@
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // ORCHESTRATE
+  // CLICK "بعدی" BUTTON — reusable across pages
+  // ══════════════════════════════════════════════════════════════════
+  async function clickNextBtn() {
+    await randomDelay();
+    for (const btn of document.querySelectorAll('button')) {
+      const t = (btn.textContent || '').trim();
+      if (t.includes('بعدی') && btn.offsetParent && !btn.disabled) {
+        log('clicking بعدی...');
+        btn.click();
+        return true;
+      }
+    }
+    warn('بعدی button not found');
+    return false;
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // WAIT FOR ELEMENT — poll until element appears or timeout
+  // ══════════════════════════════════════════════════════════════════
+  async function waitForEl(selectors, label, maxWaitSec = 20) {
+    for (let w = 0; w < maxWaitSec * 2; w++) {
+      await sleep(500);
+      const el = findElement(selectors, label);
+      if (el) return el;
+    }
+    warn(label + ' did not load within ' + maxWaitSec + 's');
+    return null;
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // ORCHESTRATE — full form flow: Page 1 → Page 2 → Page 3 → Page 4
+  // NEVER clicks submit (ثبت آگهی) — operator does that manually.
   // ══════════════════════════════════════════════════════════════════
   async function orchestrate() {
     if (!currentPrefill) return;
@@ -443,7 +479,7 @@
     let filled = 0;
     const filledKeys = new Set();
 
-    // 1. Fill text fields (Page 1)
+    // ── Page 1: Title + Description + Images ──────────────────────
     let fieldStart = Date.now();
     await randomDelay();
     const titleEl = findTextField('title');
@@ -469,38 +505,26 @@
       fieldResults.push({ field: 'description', strategy: 'setText', fallbackUsed: false, duration: Date.now() - fieldStart, success: false });
     }
 
-    // 2. Upload images (Page 1)
+    // Upload images
     fieldStart = Date.now();
     await uploadImages();
     fieldResults.push({ field: 'images', strategy: 'upload', fallbackUsed: false, duration: Date.now() - fieldStart, success: !!(pf.images?.length) });
 
     log('page 1 done:', filled, 'fields — clicking بعدی...');
     showIndicator(
-      '✅ ' + filled + ' فیلد پر شد (صفحه ۱)\
-' +
+      '✅ ' + filled + ' فیلد پر شد (صفحه ۱)\n' +
       'بعدی زده میشه، صبر کن...'
     );
 
-    // 3. Click "بعدی" to go to Page 2 (car fields)
-    await randomDelay();
-    let nextClicked = false;
-    for (const btn of document.querySelectorAll('button')) {
-      const t = (btn.textContent || '').trim();
-      if (t.includes('بعدی') && btn.offsetParent && !btn.disabled) {
-        log('clicking بعدی...');
-        btn.click();
-        nextClicked = true;
-        break;
-      }
-    }
-    if (!nextClicked) { warn('بعدی button not found'); return; }
+    // Click بعدی to go to Page 2
+    if (!await clickNextBtn()) return;
 
-    // 4. Wait for Page 2 car form. Use fallback chain for detection.
+    // ── Page 2: Car-specific select dropdowns ─────────────────────
     log('waiting for car fields to load...');
     let selectFound = false;
     for (let w = 0; w < 20; w++) {
       await sleep(500);
-      if (findElement(['#color___Input', '#color #color___Input', '[id*="color"]'], 'car fields check')) {
+      if (findElement(['#color___Input', '#color #color___Input', '[id*="color"]', '#year___Input', '[id*="year"]'], 'car fields check')) {
         selectFound = true;
         break;
       }
@@ -513,13 +537,13 @@
     // City (مکان آگهی) — TODO: find correct selector
     // if (pf.city) { ... }
 
-    // Fill all select dropdowns
+    // Fill select dropdowns
     let selectFilled = 0;
     const selects = [
       { fieldId: 'fuel_type', value: pf.fuel || 'بنزین' },
       { fieldId: 'year',      value: pf.year },
       { fieldId: 'color',     value: pf.color },
-      { fieldId: 'body_status', value: pf.bodyStatus || 'سالم و بی‌خط و خش' },
+      { fieldId: 'body_status', value: pf.bodyStatus || 'سالم و بی\u200cخط و خش' },
       { fieldId: 'gearbox',   value: pf.gearbox },
     ];
 
@@ -552,8 +576,6 @@
       fieldResults.push({ field: 'brand', strategy: 'skipped-no-value', fallbackUsed: false, duration: 0, success: false });
     }
 
-    
-
     // Mileage (usage) — use fallback chain
     fieldStart = Date.now();
     await randomDelay();
@@ -581,11 +603,97 @@
       log(`  ${r.success ? '✅' : '❌'} ${r.field}: ${r.strategy} (${r.duration}ms)${r.fallbackUsed ? ' [FALLBACK]' : ''}`);
     });
 
-    log('done! text:', filled, 'selects:', selectFilled);
+    log('page 2 done: text:', filled, 'selects:', selectFilled);
     showIndicator(
-      '✅ ' + filled + ' متن + ' + selectFilled + ' انتخاب\
-' +
-      'فرم رو بررسی کن ✋'
+      '✅ ' + filled + ' متن + ' + selectFilled + ' انتخاب\n' +
+      'رفتن به صفحه قیمت...'
+    );
+
+    // ── Navigate to Page 3 (Price) ───────────────────────────────
+    if (!await clickNextBtn()) return;
+    await fillPricePage(pf, filled, selectFilled);
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // PAGE 3: Price field — detect auto-filled vs manual input
+  // Divar AI often auto-fills price from description text.
+  // Only override if our target price differs or field is empty.
+  // NEVER clicks submit — operator does that on page 4.
+  // ══════════════════════════════════════════════════════════════════
+  async function fillPricePage(pf, filledCount, selectCount) {
+    log('waiting for price field on page 3...');
+
+    const PRICE_SELECTORS = [
+      '#Price___Input', '#Price input',
+      '#price___Input', '#price input',
+      'input[name="Price"]', 'input[name="price"]',
+      'input[placeholder*="قیمت"]', 'input[placeholder*="تومان"]',
+      'input[type="number"]', 'input[inputmode="numeric"]',
+    ];
+
+    const el = await waitForEl(PRICE_SELECTORS, 'price field', 15);
+
+    if (!el) {
+      warn('price field not found on page 3');
+      showIndicator(
+        '⚠️ فیلد قیمت پیدا نشد\n' +
+        'فرم رو دستی بررسی کن'
+      );
+      return;
+    }
+
+    // Check if Divar AI already auto-filled the price from description
+    const existing = (el.value || '').trim();
+    if (existing && pf.price) {
+      const existingNum = parseInt(existing.replace(/[^\d]/g, ''), 10);
+      const targetNum = parseInt(String(pf.price).replace(/[^\d]/g, ''), 10);
+      if (existingNum === targetNum) {
+        log('✅ price auto-filled by Divar AI, matches target:', existing);
+        filledKeys.add('price');
+      } else {
+        // Mismatch — override with our price
+        log('⚠️ price mismatch: got', existing, 'want', pf.price, '— overriding');
+        if (setTextValue(el, String(pf.price))) {
+          filledKeys.add('price');
+          log('✅ price overridden:', pf.price);
+          highlight(el);
+        }
+      }
+    } else if (pf.price) {
+      // No existing value — fill it
+      if (setTextValue(el, String(pf.price))) {
+        filledKeys.add('price');
+        log('✅ price:', pf.price);
+        highlight(el);
+      }
+    } else {
+      // No price in prefill — check if Divar AI filled it
+      if (existing) {
+        log('✅ price auto-filled by Divar AI (no prefill price):', existing);
+        filledKeys.add('price');
+      } else {
+        log('⚠️ no price available — operator sets manually');
+      }
+    }
+
+    const priceFilled = filledKeys.has('price') ? 1 : 0;
+    log('page 3 done: price:', priceFilled ? 'filled' : 'skipped');
+
+    // Click بعدی to go to Page 4 (contact info) — operator finishes manually
+    if (!await clickNextBtn()) {
+      showIndicator(
+        '✅ ' + filledCount + ' متن + ' + selectCount + ' انتخاب + قیمت\n' +
+        'بعدی پیدا نشد — فرم رو دستی بررسی کن'
+      );
+      return;
+    }
+
+    // Arrived at Page 4 — operator fills contact info and submits manually
+    log('arrived at page 4 (contact info) — operator finishes manually');
+    showIndicator(
+      '✅ فرم کامل پر شد!\n' +
+      '📖 صفحه ۴ (اطلاعات تماس) آماده\u200cست\n' +
+      '✋ خودت ثبت آگهی رو بزن'
     );
   }
 
