@@ -152,10 +152,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           return { success: true, tabId };
         }
         case 'cdpClick': {
-          // Trusted click via CDP — only affects the specific tab, nothing else
+          // Trusted click via CDP — human-like: move mouse near target first, then click
           const cdpTabId = sender.tab?.id;
           if (!cdpTabId) return { success: false, error: 'no tab' };
           const { x, y } = message;
+          // Random offset for mouse movement (human-like approach)
+          const offsetX = Math.floor(Math.random() * 20 - 10);
+          const offsetY = Math.floor(Math.random() * 20 - 10);
+          const moveX = x + offsetX;
+          const moveY = y + offsetY;
           try {
             await new Promise((res, rej) => {
               chrome.debugger.attach({ tabId: cdpTabId }, '1.0', () => {
@@ -167,7 +172,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 });
                 (async () => {
                   try {
-                    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'none' });
+                    // 1. Move mouse to near-target position
+                    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: moveX, y: moveY, button: 'none' });
+                    // 2. Brief pause (human-like)
+                    await new Promise(r => setTimeout(r, 50 + Math.random() * 100));
+                    // 3. Click at the actual target coordinates
                     await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 });
                     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
                     res();
