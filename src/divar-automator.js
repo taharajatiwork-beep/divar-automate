@@ -7,6 +7,11 @@ import browserService from './browser-service.js';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const randomDelay = () => sleep(300 + Math.random() * 900);
+
+// CSS.escape() is a browser API — not available in Node.js
+function cssEscape(s) {
+  return String(s).replace(/([^\w-])/g, '\\$1');
+}
 const LOG = '[automator]';
 const log = (...a) => console.log(LOG, ...a);
 const warn = (...a) => console.warn(LOG, ...a);
@@ -126,8 +131,8 @@ class DivarAutomator {
 
     // Check if already set
     const triggerSelectors = [
-      `#${CSS.escape(fieldId)}___Input`,
-      `#${CSS.escape(fieldId)} button`,
+      `#${cssEscape(fieldId)}___Input`,
+      `#${cssEscape(fieldId)} button`,
       `[id*="${fieldId}"] button`,
     ];
 
