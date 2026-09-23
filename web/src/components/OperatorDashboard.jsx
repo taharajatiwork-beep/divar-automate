@@ -135,6 +135,14 @@ function ActiveCard({ product, onAction, token }) {
     }
   };
 
+  const doCancel = async () => {
+    try {
+      await fetch('/api/browser/fill/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } });
+      setStep(0); setFillResults(null);
+      addToast('⛔ فرایند لغو شد', 'info');
+    } catch { addToast('خطا در لغو', 'error'); }
+  };
+
   const doComplete = async () => {
     try {
       const r = await fetch(`/api/products/${product.id}/complete`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } });
@@ -222,16 +230,26 @@ function ActiveCard({ product, onAction, token }) {
           </button>
         )}
         {step === 1 && (
-          <div className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600/30 rounded-xl text-sm text-blue-300">
-            <Loader2 size={16} className="animate-spin" />
-            در حال اتصال...
-          </div>
+          <>
+            <div className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600/30 rounded-xl text-sm text-blue-300">
+              <Loader2 size={16} className="animate-spin" />
+              در حال اتصال...
+            </div>
+            <button onClick={doCancel} className="px-4 py-2.5 bg-red-600/50 hover:bg-red-600 rounded-xl text-sm text-red-200 transition-colors">
+              ✕ لغو
+            </button>
+          </>
         )}
         {step === 2 && (
-          <div className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600/30 rounded-xl text-sm text-blue-300">
-            <Loader2 size={16} className="animate-spin" />
-            در حال پر کردن فرم...
-          </div>
+          <>
+            <div className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600/30 rounded-xl text-sm text-blue-300">
+              <Loader2 size={16} className="animate-spin" />
+              در حال پر کردن فرم...
+            </div>
+            <button onClick={doCancel} className="px-4 py-2.5 bg-red-600/50 hover:bg-red-600 rounded-xl text-sm text-red-200 transition-colors">
+              ✕ لغو
+            </button>
+          </>
         )}
         {step === 3 && (
           <>

@@ -458,6 +458,15 @@ const server = createServer(async (req, res) => {
       }
     }
 
+    // ── Cancel fill ──────────────────────────────────────────────────
+    if (method === 'POST' && path === '/api/browser/fill/cancel') {
+      requireAuth(user, 'task:create');
+      const automator = (await import('./divar-automator.js')).default;
+      if (!automator.isFilling) return sendJson(res, 400, { error: 'هیچ فرایندی در حال اجرا نیست.' });
+      automator.cancel('لغو توسط کاربر');
+      return sendJson(res, 200, { ok: true, message: 'فرایند لغو شد.' });
+    }
+
     // ── Bug Report ─────────────────────────────────────────────────
     if (method === 'POST' && path === '/api/bug-report') {
       requireAuth(user, 'products:read');
