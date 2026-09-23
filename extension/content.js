@@ -202,25 +202,22 @@
 
     if (!matched) { warn('option not found:', fieldId, optionText); trigger.click(); return false; }
 
-    // Click with pointer events for React
-    matched.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-    matched.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
-    matched.click();
+    // CDP TRUSTED CLICK via background script — isTrusted=true for React
+    const rect = matched.getBoundingClientRect();
+    const cx = Math.round(rect.left + rect.width / 2);
+    const cy = Math.round(rect.top + rect.height / 2);
+    let clicked = false;
+    try {
+      const resp = await chrome.runtime.sendMessage({ action: 'cdpClick', x: cx, y: cy });
+      clicked = resp?.success;
+    } catch (e) { warn('cdpClick msg error:', e.message); }
+    
     await sleep(700);
-
-    // Verify commit
     const after = (trigger.innerText || '').trim();
-    if (normalizeOption(after) !== normalizeOption(before) && after !== 'انتخاب') {
+    if (clicked && normalizeOption(after) !== normalizeOption(before) && after !== 'انتخاب') {
       log('✅ committed:', fieldId, '=', after); return true;
     }
-    // Retry once
-    matched.click();
-    await sleep(500);
-    const retry = (trigger.innerText || '').trim();
-    if (retry !== before && retry !== 'انتخاب') {
-      log('✅ committed (retry):', fieldId, '=', retry); return true;
-    }
-    warn('commit failed:', fieldId, 'still:', retry);
+    warn('commit failed:', fieldId, 'clicked:', clicked, 'text:', after);
     trigger.click(); return false;
   }
 

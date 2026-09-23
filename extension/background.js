@@ -151,6 +151,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const tabId = await openDivarTab();
           return { success: true, tabId };
         }
+        case 'cdpClick': {
+          // Trusted click via CDP — only affects the specific tab, nothing else
+          const cdpTabId = sender.tab?.id;
+          if (!cdpTabId) return { success: false, error: 'no tab' };
+          const { x, y } = message;
+          try {
+            await new Promise((res, rej) => {
+              chrome.debugger.attach({ tabId: cdpTabId }, '1.0', () => {
+                if (chrome.runtime.lastError) { rej(chrome.runtime.lastError); return; }
+                const send = (method, params) => new Promise((r, e) => {
+                  chrome.debugger.sendCommand({ tabId: cdpTabId }, method, params, () => {
+                    if (chrome.runtime.lastError) e(chrome.runtime.lastError); else r();
+                  });
+                });
+                (async () => {
+                  try {
+                    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'none' });
+                    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 });
+                    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
+                    res();
+                  } catch (e) { rej(e); }
+                })();
+              });
+            });
+            chrome.debugger.detach({ tabId: cdpTabId }, () => {});
+            return { success: true };
+          } catch (err) {
+            try { chrome.debugger.detach({ tabId: cdpTabId }, () => {}); } catch {}
+            return { success: false, error: err.message || String(err) };
+          }
+        }
         default: return { success: false, error: `اکشن ناشناخته: ${message.action}` };
       }
     } catch (err) { return { success: false, error: err.message }; }
