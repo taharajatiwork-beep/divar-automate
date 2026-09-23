@@ -161,12 +161,26 @@
       return false;
     }
 
-    // Step 1: Click 'show all items' to reveal search box
-    const showAllEl = modal.querySelector('.rawButton-W5tTZw') ||
-      modal.querySelector('[role="button"]');
-    if (showAllEl && /همه/.test(showAllEl.textContent)) {
-      showAllEl.click();
-      await sleep(800);
+    // Step 1: Check if match exists in visible suggestions FIRST
+    const rows = modal.querySelectorAll('.kt-base-row');
+    for (const row of rows) {
+      const t = row.querySelector('.start__title-_UBPtX, p');
+      const txt = (t?.textContent || row.textContent || '').trim();
+      const ntxt = n(txt);
+      if (ntxt.includes(wanted) || wanted.includes(ntxt) || ntxt.includes(n(optionText.split(/s+/)[0]))) {
+        matched = row;
+        log('found in suggestions:', txt);
+        break;
+      }
+    }
+    
+    // Only if no match in suggestions, click 'show all' and search
+    if (!matched) {
+      const showAllEl = modal.querySelector('[role="button"]');
+      if (showAllEl && /همه/.test(showAllEl.textContent)) {
+        showAllEl.click();
+        await sleep(1000);
+      }
     } else {
       // Fallback: find any clickable element containing 'show all'
       const allBtn = [...modal.querySelectorAll('[role="button"], a, button')]
@@ -186,7 +200,6 @@
     }
 
     // Find matching option row
-    const rows = modal.querySelectorAll(".kt-base-row");
     let matched = null;
 
     for (const row of rows) {
