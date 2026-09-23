@@ -142,12 +142,23 @@
     await sleep(700);
     log('DEBUG after click: expanded=' + trigger.getAttribute('aria-expanded') + ' text=' + trigger.innerText?.trim());
 
-    if (trigger.getAttribute('aria-expanded') !== 'true') {
+    // Some fields (kt-action-field like brand_model) don't have aria-expanded
+    // Just check if text changed or wait for modal
+    const hasExpanded = trigger.getAttribute('aria-expanded') !== null;
+    if (hasExpanded && trigger.getAttribute('aria-expanded') !== 'true') {
       warn('field did not open:', fieldId, 'aria-expanded=' + trigger.getAttribute('aria-expanded'));
       return false;
     }
+    // For action fields, wait a bit for modal to appear
+    if (!hasExpanded) await sleep(300);
 
-    const modal = document.querySelector('.single-select-modal.kt-modal');
+    // Find modal — Divar uses different modal classes for different fields:
+    // - single-select-modal.kt-modal (brand_model)
+    // - kt-modal kt-modal--scrollable (year, color, etc.)
+    const modal = document.querySelector('.single-select-modal.kt-modal') ||
+      [...document.querySelectorAll('.kt-modal')].find(m =>
+        m.offsetParent !== null && m.querySelectorAll('.kt-base-row').length > 0
+      );
     const modalRows = modal ? modal.querySelectorAll('.kt-base-row').length : 0;
     log('DEBUG modal:', modal ? 'found' : 'NOT FOUND', 'rows:', modalRows);
     if (!modal) { warn('modal not found:', fieldId); trigger.click(); return false; }
@@ -416,16 +427,11 @@
 
     await sleep(800);
 
-    // City (مکان آگهی) - on page 2, before other selects
-    let selectFilled = 0;
-    if (pf.city) {
-      try {
-        const ok = await clickDivarDropdownByName('city', String(pf.city));
-        if (ok) selectFilled++;
-      } catch (e) { warn('city error:', e.message); }
-    }
+    // City (مکان آگهی) — TODO: find correct selector
+    // if (pf.city) { ... }
 
-    // Fill all select dropdowns (id-based, verified by committed text change)
+    // Fill all select dropdowns
+    let selectFilled = 0;
     const selects = [
       { fieldId: 'fuel_type', value: pf.fuel || 'بنزین' },
       { fieldId: 'year',      value: pf.year },
