@@ -113,6 +113,31 @@
   // DIVAR DROPDOWN — click trigger, modal opens, pick option
   // ══════════════════════════════════════════════════════════════════
   const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  const randomDelay = () => sleep(300 + Math.random() * 900);
+
+  // ══════════════════════════════════════════════════════════════════
+  // SELECTOR FALLBACK CHAIN — try primary then fallbacks
+  // ══════════════════════════════════════════════════════════════════
+  function findElement(selectors, label) {
+    // selectors = array of CSS selectors to try in order
+    for (const sel of selectors) {
+      try {
+        const el = document.querySelector(sel);
+        if (el && el.offsetParent !== null) {
+          if (sel !== selectors[0]) log(`fallback used: ${label} → ${sel}`);
+          return el;
+        }
+      } catch (e) { /* invalid selector, skip */ }
+    }
+    return null;
+  }
+
+  // Find a visible element from a selector config { primary, fallbacks }
+  function findFromConfig(config, label) {
+    if (!config) return null;
+    const all = [config.primary, ...(config.fallbacks || [])];
+    return findElement(all, label);
+  }
 
   function normalizeOption(value) {
     return String(value || '')
@@ -127,9 +152,12 @@
     if (!optionText) return false;
     labelText = labelText || fieldId;
 
-    // Find trigger button
-    const trigger = document.querySelector('#' + CSS.escape(fieldId) + '___Input') ||
-      document.querySelector('#' + CSS.escape(fieldId) + ' button');
+    // Find trigger button — try primary id selector, then fallbacks
+    const trigger = findElement([
+      '#' + CSS.escape(fieldId) + '___Input',
+      '#' + CSS.escape(fieldId) + ' button',
+      '[id*="' + fieldId + '"]',
+    ], labelText + ' trigger');
     if (!trigger) { warn('field not found:', fieldId); return false; }
 
     const before = (trigger.innerText || '').trim();
@@ -152,13 +180,12 @@
     // For action fields, wait a bit for modal to appear
     if (!hasExpanded) await sleep(300);
 
-    // Find modal — Divar uses different modal classes for different fields:
-    // - single-select-modal.kt-modal (brand_model)
-    // - kt-modal kt-modal--scrollable (year, color, etc.)
-    const modal = document.querySelector('.single-select-modal.kt-modal') ||
-      [...document.querySelectorAll('.kt-modal')].find(m =>
-        m.offsetParent !== null && m.querySelectorAll('.kt-base-row').length > 0
-      );
+    // Find modal — Divar uses different modal classes for different fields
+    const modal = findElement([
+      '.single-select-modal.kt-modal',
+      '.kt-modal.kt-modal--scrollable',
+      '.kt-modal',
+    ], labelText + ' modal');
     const modalRows = modal ? modal.querySelectorAll('.kt-base-row').length : 0;
     log('DEBUG modal:', modal ? 'found' : 'NOT FOUND', 'rows:', modalRows);
     if (!modal) { warn('modal not found:', fieldId); trigger.click(); return false; }
@@ -166,34 +193,37 @@
     // Get all option rows
     const rows = modal.querySelectorAll('.kt-base-row');
     const wanted = normalizeOption(optionText);
-    const brandWord = normalizeOption((optionText.split(/s+/)[0] || ''));
+    const brandWord = normalizeOption((optionText.split(/\s+/)[0] || ''));
     let matched = null;
+
+    // Helper: extract title text from a row using fallback chain
+    const OPTION_TITLE_SELS = ['.start__title-_UBPtX', 'p[class*="title"]', '.kt-base-row__start p', '.kt-base-row p', 'p'];
+    function getOptionTitle(row) {
+      for (const sel of OPTION_TITLE_SELS) {
+        const el = row.querySelector(sel);
+        if (el?.textContent?.trim()) return el;
+      }
+      return null;
+    }
 
     // Pass 1: exact/fuzzy match on full text
     log('DEBUG matching: wanted=' + wanted + ' brandWord=' + brandWord + ' rows=' + rows.length);
     for (const row of rows) {
-      // Year modal doesn't use .start__title — try multiple selectors
-      const titleEl = row.querySelector('.start__title-_UBPtX') ||
-        row.querySelector('p[class*="title"]') ||
-        row.querySelector('.kt-base-row__start p') ||
-        row.querySelector('p');
+      const titleEl = getOptionTitle(row);
       const txt = normalizeOption(titleEl?.textContent || row.textContent || '');
       if (txt.includes(wanted) || wanted.includes(txt)) {
         matched = row; log('DEBUG match found:', titleEl?.textContent?.trim() || row.textContent?.trim()); break;
       }
     }
     if (!matched) log('DEBUG no match in rows:', [...rows].map(r => {
-      const p = r.querySelector('.start__title-_UBPtX') || r.querySelector('p');
+      const p = getOptionTitle(r);
       return normalizeOption(p?.textContent || r.textContent || '').slice(0,30);
     }).join(' | '));
 
     // Pass 2: brand-only match
     if (!matched && brandWord.length > 2) {
       for (const row of rows) {
-        const titleEl = row.querySelector('.start__title-_UBPtX') ||
-          row.querySelector('p[class*="title"]') ||
-          row.querySelector('.kt-base-row__start p') ||
-          row.querySelector('p');
+        const titleEl = getOptionTitle(row);
         const txt = normalizeOption(titleEl?.textContent || row.textContent || '');
         if (txt.includes(brandWord)) {
           matched = row; log('DEBUG brand match:', titleEl?.textContent?.trim() || row.textContent?.trim()); break;
@@ -203,21 +233,38 @@
 
     // Pass 3: click 'show all' then search
     if (!matched) {
-      const showAll = modal.querySelector('[role="button"]');
+      const showAll = findElement([
+        '.rawButton-W5tTZw',
+        '[role="button"]',
+      ], labelText + ' showAll');
       if (showAll && /همه/.test(showAll.textContent)) {
         showAll.click(); await sleep(1000);
-        // Search
-        const inp = modal.querySelector('input[type="text"], input[placeholder]');
+        // Search — use fallback chain for input selector
+        const inp = findElement([
+          '#brand_model-search-input',
+          'input[type="text"]',
+          'input[placeholder]',
+        ], labelText + ' search');
         if (inp) {
-          const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-          if (set) set.call(inp, optionText); else inp.value = optionText;
-          inp.dispatchEvent(new Event('input', { bubbles: true }));
+          // Character-by-character typing for human-like behavior
+          inp.focus();
+          inp.value = '';
+          for (const ch of optionText) {
+            const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+            if (set) set.call(inp, inp.value + ch); else inp.value += ch;
+            inp.dispatchEvent(new KeyboardEvent('keydown', { key: ch, bubbles: true }));
+            inp.dispatchEvent(new KeyboardEvent('keypress', { key: ch, bubbles: true }));
+            inp.dispatchEvent(new Event('input', { bubbles: true }));
+            inp.dispatchEvent(new KeyboardEvent('keyup', { key: ch, bubbles: true }));
+            await sleep(30 + Math.random() * 80);
+          }
+          inp.dispatchEvent(new Event('change', { bubbles: true }));
           await sleep(600);
         }
         // Re-check rows after search
         const newRows = modal.querySelectorAll('.kt-base-row');
         for (const row of newRows) {
-          const t = row.querySelector('.start__title-_UBPtX, p');
+          const t = getOptionTitle(row) || row.querySelector('.start__title-_UBPtX, p');
           const txt = normalizeOption(t?.textContent || row.textContent || '');
           if (txt.includes(wanted) || wanted.includes(txt) || txt.includes(brandWord)) {
             matched = row; log('search match:', t?.textContent?.trim()); break;
@@ -228,11 +275,14 @@
 
     if (!matched) { warn('option not found:', fieldId, optionText); trigger.click(); return false; }
 
+    // Human-like delay before clicking
+    await randomDelay();
+
     // CDP TRUSTED CLICK via background script — isTrusted=true for React
     const rect = matched.getBoundingClientRect();
     const cx = Math.round(rect.left + rect.width / 2);
     const cy = Math.round(rect.top + rect.height / 2);
-    log('DEBUG CDP click at:', cx, cy, 'for:', matched.querySelector('.start__title-_UBPtX, p')?.textContent?.trim());
+    log('DEBUG CDP click at:', cx, cy, 'for:', (getOptionTitle(matched) || matched.querySelector('p'))?.textContent?.trim());
     let clicked = false;
     try {
       const resp = await chrome.runtime.sendMessage({ action: 'cdpClick', x: cx, y: cy });
@@ -385,6 +435,7 @@
     const filledKeys = new Set();
 
     // 1. Fill text fields (Page 1)
+    await randomDelay();
     const titleEl = findTextField('title');
     if (titleEl && pf.title && setTextValue(titleEl, pf.title)) {
       filledKeys.add('title'); filled++;
@@ -392,6 +443,7 @@
       highlight(titleEl);
     }
 
+    await randomDelay();
     const descEl = findTextField('description');
     const desc = generateDescription(pf);
     if (descEl && desc && setTextValue(descEl, desc)) {
@@ -411,7 +463,7 @@
     );
 
     // 3. Click "بعدی" to go to Page 2 (car fields)
-    await new Promise(r => setTimeout(r, 2000));
+    await randomDelay();
     let nextClicked = false;
     for (const btn of document.querySelectorAll('button')) {
       const t = (btn.textContent || '').trim();
@@ -424,12 +476,12 @@
     }
     if (!nextClicked) { warn('بعدی button not found'); return; }
 
-    // 4. Wait for Page 2 car form. Divar uses id-based fields, not name attributes.
+    // 4. Wait for Page 2 car form. Use fallback chain for detection.
     log('waiting for car fields to load...');
     let selectFound = false;
     for (let w = 0; w < 20; w++) {
       await sleep(500);
-      if (document.querySelector('#color #color___Input')) {
+      if (findElement(['#color___Input', '#color #color___Input', '[id*="color"]'], 'car fields check')) {
         selectFound = true;
         break;
       }
@@ -454,13 +506,15 @@
 
     for (const s of selects) {
       if (!s.value) continue;
+      await randomDelay();
       try {
         const ok = await clickDivarDropdownByName(s.fieldId, String(s.value));
         if (ok) selectFilled++;
       } catch (e) { warn('select error:', s.fieldId, e.message); }
     }
 
-    // Brand/model: trigger is #brand_model___Input (from label for="brand_model___Input")
+    // Brand/model
+    await randomDelay();
     const brandVal = pf.model || pf.brand;
     if (brandVal) {
       try {
@@ -471,8 +525,14 @@
 
     
 
-    // Mileage (usage) is a text INPUT with id #usage___Input
-    const usageEl = document.querySelector('#usage___Input');
+    // Mileage (usage) — use fallback chain
+    await randomDelay();
+    const usageEl = findElement([
+      '#usage___Input',
+      '[id*="usage"]',
+      '[id*="mileage"]',
+      'input[type="number"]',
+    ], 'usage');
     if (usageEl && pf.mileage && setTextValue(usageEl, String(pf.mileage))) {
       selectFilled++;
       log('✅ usage:', pf.mileage);
