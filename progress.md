@@ -18,6 +18,33 @@
 
 ---
 
+## فاز ۶ (۲۰۲۶-۰۹-۲۳): مهاجرت به Puppeteer
+
+### تغییر معماری
+اکستنشن Chrome + CDP debugger → **puppeteer-core + Chrome headed + profile پایدار**
+
+| فایل | وظیفه |
+|------|-------|
+| `src/browser-service.js` | اتصال puppeteer-core به Chrome با remote debugging |
+| `src/divar-automator.js` | پر کردن فرم دیوار — جایگزین `extension/content.js` |
+| `start.bat` | اجرای یک‌کلیکی: Chrome → 3s wait → node server |
+| `install.bat` | نصب وابستگی‌ها با بررسی Node.js |
+
+### endpointهای جدید
+| method | path | وظیفه |
+|--------|------|-------|
+| GET | `/api/browser/status` | وضعیت اتصال مرورگر |
+| POST | `/api/browser/launch` | اجرای Chrome + اتصال puppeteer |
+| POST | `/api/browser/fill` | پر کردن فرم برای یک محصول |
+
+### مزایای Puppeteer نسبت به اکستنشن
+- `page.click()` → `Input.dispatchMouseEvent` → `isTrusted=true` بدون CDP debugger
+- Profile پایدار (`divar-profile/`) → لاگین حفظ می‌شود
+- نیازی به `chrome.debugger` permission و بنر زرد نیست
+- اکستنشن هنوز موجود است برای اپراتورهایی که ترجیح می‌دهند
+
+---
+
 ## فاز ۵ (۲۰۲۶-۰۹-۲۳): اتوماسیون فرم دیوار
 
 ### کشفیات کلیدی درباره DOM دیوار
@@ -202,14 +229,16 @@ C:\taha\projects\divar\
 │   ├── popup.js               # Login UI
 │   └── popup.html
 ├── src/
-│   ├── server.js              # HTTP API (CORS, locking, prefill)
+│   ├── server.js              # HTTP API (CORS, locking, prefill, browser control)
 │   ├── pilot-service.js       # Core service (task lifecycle)
 │   ├── database.js            # JSON persistence (10 products)
 │   ├── categories.js          # 4 templates (incl. vehicles)
 │   ├── auth.js                # Token auth (3 roles)
 │   ├── quota.js               # Daily quota monitor
 │   ├── images.js              # Image validation
-│   └── static-server.js       # Static file server :5174
+│   ├── static-server.js       # Static file server :5174
+│   ├── browser-service.js     # Puppeteer-core + Chrome headed (NEW)
+│   └── divar-automator.js     # Form filling via Puppeteer (NEW)
 ├── data/
 │   ├── products.json          # 10 car products (exact Divar names)
 │   └── images/                # Placeholder images (P001-P010)
@@ -256,8 +285,8 @@ C:\taha\projects\divar\
 | معیار | مقدار |
 |-------|-------|
 | خطوط کد | ~۲,۵۰۰ |
-| فایل‌های منبع | ۱۵ |
-| endpointهای API | ۱۴+ |
+|| فایل‌های منبع | ۱۷ |
+|| endpointهای API | ۱۷+ |
 | محصولات Mock | ۱۰ خودرو |
 | دسته‌بندی‌ها | ۴ |
 | نقش‌ها | ۳ |

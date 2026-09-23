@@ -4,6 +4,30 @@
 
 ---
 
+## مهاجرت به Puppeteer (۲۰۲۶-۰۹-۲۳)
+
+### معماری جدید
+بجای اکستنشن Chrome، سیستم از **puppeteer-core** برای کنترل Chrome headed با profile پایدار استفاده می‌کند.
+
+```
+POST /api/browser/launch  →  اجرای Chrome + اتصال puppeteer
+POST /api/browser/fill    →  پر کردن فرم برای یک محصول
+GET  /api/browser/status  →  وضعیت اتصال
+```
+
+### فایل‌های جدید
+- `src/browser-service.js` — اتصال puppeteer-core به Chrome headed
+- `src/divar-automator.js` — جایگزین content.js — پر کردن ۴ صفحه فرم
+- `start.bat` — اجرای یک‌کلیکی Chrome + Server
+- `install.bat` — نصب وابستگی‌ها
+
+### مزایا
+- کلیک‌های Puppeteer از `Input.dispatchMouseEvent` استفاده می‌کنند → `isTrusted=true` بدون نیاز به CDP debugger API
+- Profile پایدار در `divar-profile/` → لاگین دیوار حفظ می‌شود
+- اکستنشن برای اپراتورهایی که ترجیح می‌دهند هنوز موجود است
+
+---
+
 ## اولویت ۱ — کاهش ریسک شکستن ناگهانی 🔴
 
 ### Health-check روزانه
@@ -85,4 +109,13 @@
 | ۵. امنیت توکن | ⬜ شروع نشده |
 | ۵. debugger cleanup | ⬜ شروع نشده |
 | ۶. Progress bar | ⬜ شروع نشده |
-| ۶. گزارش خرابی | ⬜ شروع نشده |
+|| ۶. گزارش خرابی | ⬜ شروع نشده ||
+
+## مهاجرت Puppeteer
+
+| مورد | وضعیت |
+|------|-------|
+| browser-service.js | ✅ انجام شده |
+| divar-automator.js | ✅ انجام شده |
+| API endpoints | ✅ انجام شده |
+| start.bat / install.bat | ✅ انجام شده |
