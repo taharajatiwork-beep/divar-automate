@@ -108,9 +108,39 @@ Divar AI مقادیر select را از متن توضیحات استخراج و �
 
 ---
 
-## فاز ۱-۴ (۲۰۲۶-۰۹-۲۲): هسته سیستم
+## فاز ۷ (۲۰۲۶-۰۹-۲۳): UI/UX، Health Check، Cancel و Reconnect
 
-### فاز ۱: هسته سرویس + اکستنشن
+### UI/UX کامل بازنویسی (OperatorDashboard، Login، Sidebar)
+- **Toast notification system** (`web/src/ui/index.jsx`): ToastProvider، Modal، Badge، Skeleton، EmptyState، ProgressBar
+- **Login page**: گرادیانت متحرک پس‌زمینه، آواتارهای گرادیانت، badge نقش، انیمیشن fade-in
+- **OperatorDashboard بازنویسی کامل**:
+  - نوار مرورگر فشرده (BrowserBar) جایگزین BrowserPanel حجیم
+  - کارت کار جاری با تصویر محصول + شمارش معکوس + step indicator واقعی
+  - نتایج autofill جزئی (title، description، images، fields، price)
+  - کارت‌های محصول با عکس، قیمت، دسته‌بندی، attributes
+- **Sidebar**: گرادیانت پس‌زمینه، آیتم فعال با حاشیه آبی، کارت وضعیت مرورگر، نسخه
+- **انیمیشن‌ها**: gradientShift، fadeInUp، slide-in، pulseGreen، pulseYellow، pageIn
+
+### Browser Health Check و Reconnect
+- **Health check**: `_ping()` هر ۱۰ ثانیه `pages[0].evaluate(() => 1)` صدا می‌زند — CDP call واقعی که روی Chrome مرده throw می‌کند
+- **Disconnect detection**: listener روی `browser.on('disconnected')` + health check → خودکار `ready: false`
+- **Reconnect endpoint**: `POST /api/browser/reconnect` — force reset و re-launch Chrome
+- **OperatorDashboard**: دکمه «راه‌اندازی مرورگر» وقتی قطع، دکمه «✕ لغو» وسط فرایند
+
+### Cancel و Cleanup
+- **CancelToken class**: لغو در هر مرحله از autofill
+- **POST /api/browser/fill/cancel** endpoint
+- **Cleanup method**: قبل از هر autofill، به `divar.ir/new` ناوبری + صبر برای لود فرم
+- **Page load verification**: `_waitForElement` قبل از پر کردن هر صفحه
+
+### اصلاحات تکمیلی divar-automator.js
+- Error messages فارسی
+- Results tracking جزئی‌تر: page، field، status، strategy
+- Summary logging در کنسول
+- brand matching بهبود یافته (normalizeOption برای اعداد فارسی)
+- Price page: تشخیص auto-filled از Divar AI
+
+---
 - چرخه عمر کامل وظیفه: `needs_review → ready_for_assignment → assigned → prefill_ready → submitted → confirmed`
 - API سرور — ۱۶ endpoint
 - اکستنشن Chrome MV3
@@ -266,6 +296,9 @@ C:\taha\projects\divar\
 | ✅ قفل محصول 30 دقیقه | auto-release |
 | ✅ city → دستی | مپ باز می‌شه، خودکار نمیشه |
 | ✅联系方式 → دستی | operator انتخاب می‌کنه |
+| ✅ Health check مرورگر | هر ۱۰ ثانیه evaluate() ping |
+| ✅ Cancel autofill | دکمه لغو در هر مرحله |
+| ✅ Reconnect مرورگر | دکمه راه‌اندازی مجدد در UI |
 
 ---
 
@@ -277,6 +310,7 @@ C:\taha\projects\divar\
 - [ ] **TODOهای بهبود**: نقشه راه کامل در `ROADMAP.md`
 - [ ] **تست CDP click با خودروهای مختلف**: brand-only fallback
 - [ ] **حالت توسعه‌دهنده**: لاگ‌های DEBUG رو غیرفعال کنه
+- [ ] **Brand matching test**: با برندهای جدید Divar (اکو، پراید، تندر90 و...)
 
 ---
 
@@ -284,9 +318,9 @@ C:\taha\projects\divar\
 
 | معیار | مقدار |
 |-------|-------|
-| خطوط کد | ~۲,۵۰۰ |
-|| فایل‌های منبع | ۱۷ |
-|| endpointهای API | ۱۷+ |
+| خطوط کد | ~۳,۰۰۰ |
+| فایل‌های منبع | ۱۹ |
+| endpointهای API | ۲۰+ |
 | محصولات Mock | ۱۰ خودرو |
 | دسته‌بندی‌ها | ۴ |
 | نقش‌ها | ۳ |
