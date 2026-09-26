@@ -61,19 +61,42 @@ class DivarAutomator {
 
   // ── Navigate to fresh ad form (cleanup) ─────────────────────────
   async cleanup() {
+    log('cleanup: starting...');
+    const page = browserService.getPage();
+
+    // Step 1: Click "پاک کردن" if we're already on divar.ir/new (clear existing form)
+    try {
+      const currentUrl = page.url();
+      if (currentUrl.includes('divar.ir/new')) {
+        log('cleanup: on ad form, clicking "پاک کردن"...');
+        const buttons = await page.$$('button');
+        for (const btn of buttons) {
+          const txt = await page.evaluate((e) => (e.textContent || '').trim(), btn);
+          if (txt.includes('پاک کردن')) {
+            const isVisible = await page.evaluate((e) => e.offsetParent !== null && !e.disabled, btn);
+            if (isVisible) {
+              await btn.click();
+              log('cleanup: clicked "پاک کردن"');
+              await sleep(1500);
+              break;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      warn('cleanup: clear button error:', err.message);
+    }
+
+    // Step 2: Navigate to fresh ad form
     log('cleanup: navigating to fresh form...');
-    // Step 1: Navigate to divar.ir to clear form state
-    await browserService.navigate('https://divar.ir');
-    await sleep(2000);
-    // Step 2: Now navigate to new ad form (fresh state)
     await browserService.navigate('https://divar.ir/new');
     await sleep(3000);
+
     // Re-acquire page reference after navigation
     try {
       await browserService.reacquirePage();
     } catch {}
-    const page = browserService.getPage();
-    const url = page.url();
+    const url = browserService.getPage().url();
     if (!url.includes('divar.ir')) {
       throw new Error('صفحه دیوار بارگذاری نشد: ' + url);
     }
