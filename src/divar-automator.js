@@ -167,6 +167,7 @@ class DivarAutomator {
     } finally {
       this._filling = false;
       this._cancelToken = null;
+      await this._releaseCdp();
     }
 
     this.logSummary();
@@ -176,6 +177,7 @@ class DivarAutomator {
   // ── Page 1: Title + Description + Images ─────────────────────────
   async fillPage1(product) {
     log('page 1: title + description + images');
+    try { await browserService.reacquirePage(); } catch {}
     const page = browserService.getPage();
 
     log('waiting for title field...');
@@ -210,17 +212,36 @@ class DivarAutomator {
 
   // ── CDP trusted click (isTrusted=true) ────────────────────────
   async _cdpClick(page, element) {
-    const cdp = await page.target().createCDPSession();
+    // Get element coordinates and dispatch mouse events via page.evaluate
+    // This works because React listens to native DOM events
+    const rect = await page.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width, h: r.height };
+    }, element);
+    
+    // Try CDP first, fall back to dispatchEvent
     try {
-      const rect = await page.evaluate((el) => {
-        const r = el.getBoundingClientRect();
-        return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+      if (!this._cdpSession) {
+        this._cdpSession = await page.target().createCDPSession();
+      }
+      await this._cdpSession.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: rect.x, y: rect.y, button: 'left', clickCount: 1 });
+      await this._cdpSession.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: rect.x, y: rect.y, button: 'left', clickCount: 1 });
+    } catch {
+      // Fallback: dispatch trusted-like events
+      this._cdpSession = null;
+      await page.evaluate((el) => {
+        el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+        el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+        el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
       }, element);
-      await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: rect.x, y: rect.y, button: 'left', clickCount: 1 });
-      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: rect.x, y: rect.y, button: 'left', clickCount: 1 });
-      await sleep(500);
-    } finally {
-      try { await cdp.detach(); } catch {}
+    }
+    await sleep(500);
+  }
+
+  async _releaseCdp() {
+    if (this._cdpSession) {
+      try { await this._cdpSession.detach(); } catch {}
+      this._cdpSession = null;
     }
   }
 
@@ -230,52 +251,33 @@ class DivarAutomator {
     log('selecting location:', cityName);
     await randomDelay();
 
-    // Step 1: Find and click the location "انتخاب" button
-    // The location field has a button.kt-action-field with text "انتخاب"
-    // and "مکان" appears in parent element text
+    // Always get fresh page reference
+    try { await browserService.reacquirePage(); } catch {}
+    const freshPage = browserService.getPage();
+    log('location page URL:', freshPage.url());
+
+    // Step 1: Find "انتخاب" button — location is the first visible one
     let clicked = false;
-    const actionButtons = await page.$$('button.kt-action-field');
-    for (const btn of actionButtons) {
-      const text = await page.evaluate((e) => (e.textContent || '').trim(), btn);
-      if (text !== 'انتخاب') continue;
-
-      // Walk up parents to check if "مکان" is nearby
-      const hasMakan = await page.evaluate((e) => {
-        let el = e;
-        for (let i = 0; i < 5; i++) {
-          el = el.parentElement;
-          if (!el) return false;
-          if (el.textContent.includes('مکان')) return true;
-        }
-        return false;
-      }, btn);
-
-      if (hasMakan) {
-        await this._cdpClick(page, btn);
-        log('clicked location field');
-        clicked = true;
-        break;
-      }
-    }
-
-    // Fallback: click first visible "انتخاب" button
-    if (!clicked) {
-      for (const btn of actionButtons) {
-        const text = await page.evaluate((e) => (e.textContent || '').trim(), btn);
-        if (text === 'انتخاب') {
-          const isVisible = await page.evaluate((e) => e.offsetParent !== null, btn);
-          if (isVisible) {
-            await this._cdpClick(page, btn);
-            log('clicked location field (fallback)');
-            clicked = true;
-            break;
-          }
+    const allBtns = await freshPage.$$('button');
+    log('total buttons:', allBtns.length);
+    for (const btn of allBtns) {
+      const text = await freshPage.evaluate((e) => (e.textContent || '').trim(), btn);
+      if (text === 'انتخاب') {
+        const isVisible = await freshPage.evaluate((e) => {
+          const r = e.getBoundingClientRect();
+          return r.width > 0 && r.height > 0 && e.offsetParent !== null;
+        }, btn);
+        if (isVisible) {
+          log('found location btn, clicking...');
+          await this._cdpClick(freshPage, btn);
+          clicked = true;
+          break;
         }
       }
     }
 
     if (!clicked) {
-      warn('location: could not find location field');
+      warn('location: could not find clickable button');
       this._results.push({ field: 'location', status: 'field-not-found' });
       return;
     }
@@ -291,10 +293,10 @@ class DivarAutomator {
     ];
     let searchInput = null;
     for (const sel of searchSelectors) {
-      searchInput = await page.$(sel).catch(() => null);
+      searchInput = await freshPage.$(sel).catch(() => null);
       if (searchInput) {
         // Make sure it's the modal search, not another input
-        const isVisible = await page.evaluate((e) => e.offsetParent !== null, searchInput);
+        const isVisible = await freshPage.evaluate((e) => e.offsetParent !== null, searchInput);
         if (isVisible) break;
         searchInput = null;
       }
@@ -309,70 +311,95 @@ class DivarAutomator {
     // Clear and type city name
     await searchInput.click();
     await sleep(100);
-    await page.keyboard.down('Control');
-    await page.keyboard.press('a');
-    await page.keyboard.up('Control');
+    await freshPage.keyboard.down('Control');
+    await freshPage.keyboard.press('a');
+    await freshPage.keyboard.up('Control');
     await sleep(50);
-    await page.keyboard.press('Backspace');
+    await freshPage.keyboard.press('Backspace');
     await sleep(100);
     await searchInput.type(cityName, { delay: 50 });
     await sleep(1500);
 
-    // Step 3: Click first search result
-    const resultSelectors = [
-      '.kt-modal .kt-base-row',
-      '.kt-modal .kt-list-row',
-      '[class*="modal"] [class*="row"]',
-      '[class*="result"] [class*="item"]',
-    ];
+    // Step 3: Click search result — prefer EXACT match
+    // Divar results: "روستای قلعه جوق سبلان" ... "سبلان" (exact = last)
     let clickedResult = false;
+    
+    // Pass 1: Exact match (text === cityName or text starts with cityName and is short)
+    const resultSelectors = ['.kt-modal .kt-base-row', '.kt-modal [role="option"]'];
+    const allRows = [];
     for (const sel of resultSelectors) {
-      const results = await page.$$(sel);
-      for (const r of results) {
-        const text = await page.evaluate((e) => (e.textContent || '').trim(), r);
-        if (text.includes(cityName) || cityName.includes(text.replace(/\s+/g, ''))) {
-          const isVisible = await page.evaluate((e) => e.offsetParent !== null, r);
-          if (isVisible) {
-            await this._cdpClick(page, r);
-            log('selected city:', text.substring(0, 30));
-            clickedResult = true;
-            break;
-          }
-        }
+      const rows = await freshPage.$$(sel);
+      for (const r of rows) {
+        const text = await freshPage.evaluate((e) => (e.textContent || '').trim(), r);
+        if (text) allRows.push({ el: r, text });
       }
-      if (clickedResult) break;
     }
 
+    // Exact match first
+    for (const row of allRows) {
+      if (row.text === cityName || row.text.trim() === cityName) {
+        const isVisible = await freshPage.evaluate((e) => e.offsetParent !== null, row.el);
+        if (isVisible) {
+          await this._cdpClick(freshPage, row.el);
+          log('selected exact match:', row.text.substring(0, 40));
+          clickedResult = true;
+          break;
+        }
+      }
+    }
+
+    // Pass 2: Contains city name (shortest = most likely the city itself)
     if (!clickedResult) {
-      // Try any visible row in the modal
-      const rows = await page.$$('.kt-modal .kt-base-row, .kt-modal [role="option"]');
-      if (rows.length > 0) {
-        await this._cdpClick(page, rows[0]);
-        log('selected first city result');
+      const matching = allRows.filter(r => r.text.includes(cityName));
+      matching.sort((a, b) => a.text.length - b.text.length);
+      if (matching.length > 0) {
+        await this._cdpClick(freshPage, matching[0].el);
+        log('selected closest match:', matching[0].text.substring(0, 40));
         clickedResult = true;
       }
+    }
+
+    if (!clickedResult && allRows.length > 0) {
+      await this._cdpClick(freshPage, allRows[0].el);
+      log('selected first result:', allRows[0].text.substring(0, 40));
+      clickedResult = true;
     }
 
     await sleep(1000);
 
     // Step 4: Click "تأیید" button
-    const confirmBtns = await page.$$('button');
+    const confirmBtns = await freshPage.$$('button');
     for (const btn of confirmBtns) {
-      const txt = await page.evaluate((e) => (e.textContent || '').trim(), btn);
+      const txt = await freshPage.evaluate((e) => (e.textContent || '').trim(), btn);
       if (txt === 'تأیید' || txt.includes('تأیید')) {
-        const isVisible = await page.evaluate((e) => e.offsetParent !== null && !e.disabled, btn);
+        const isVisible = await freshPage.evaluate((e) => e.offsetParent !== null && !e.disabled, btn);
         if (isVisible) {
-          await this._cdpClick(page, btn);
+          await this._cdpClick(freshPage, btn);
           log('location: confirmed');
-          this._results.push({ field: 'location', status: 'filled', value: cityName });
-          await sleep(1500);
-          return;
+          await sleep(2000);
+          break;
         }
       }
     }
 
-    warn('location: confirm button not found');
-    this._results.push({ field: 'location', status: 'confirm-not-found' });
+    // Step 5: Click "نمایش موقعیت حدودی" (after modal closes, back on main page)
+    await sleep(1000);
+    const mainBtns = await freshPage.$$('button, [role="button"], label, span');
+    for (const btn of mainBtns) {
+      const txt = await freshPage.evaluate((e) => (e.textContent || '').trim(), btn);
+      if (txt.includes('نمایش موقعیت حدودی')) {
+        const isVisible = await freshPage.evaluate((e) => e.offsetParent !== null, btn);
+        if (isVisible) {
+          await this._cdpClick(freshPage, btn);
+          log('location: clicked "نمایش موقعیت حدودی"');
+          await sleep(1000);
+          break;
+        }
+      }
+    }
+
+    this._results.push({ field: 'location', status: 'filled', value: cityName });
+    log('location: done —', cityName);
   }
 
   // ── Page 2: Car select dropdowns + usage input ──────────────────
