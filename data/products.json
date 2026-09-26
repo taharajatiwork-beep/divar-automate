@@ -99,9 +99,9 @@
     "city": "شیراز",
     "createdAt": "2026-09-22T12:22:35.994Z",
     "updatedAt": "2026-09-22T12:22:35.994Z",
-    "status": "active",
-    "locked_by": null,
-    "locked_at": null
+    "status": "locked",
+    "locked_by": "op-ali",
+    "locked_at": "2026-09-26T06:26:58.631Z"
   },
   {
     "id": "P005",

@@ -509,11 +509,33 @@ class DivarAutomator {
         this._results.push({ field: fieldName, status: 'not-found' });
         return false;
       }
-      await el.click({ clickCount: 3 });
+
+      // Clear field completely: click → select all → delete
+      await el.click();
+      await sleep(100);
+      await page.keyboard.down('Control');
+      await page.keyboard.press('a');
+      await page.keyboard.up('Control');
+      await sleep(50);
+      await page.keyboard.press('Backspace');
+      await sleep(100);
+
+      // Verify field is empty
+      const currentVal = await page.evaluate((e) => (e.value || '').trim(), el);
+      if (currentVal) {
+        // Force clear via evaluate
+        await page.evaluate((e) => { e.value = ''; }, el);
+        await sleep(100);
+      }
+
+      // Type the value
       await el.type(String(value), { delay: 20 });
       await sleep(200);
-      log(`✅ ${fieldName}:`, String(value).substring(0, 50));
-      this._results.push({ field: fieldName, status: 'filled' });
+
+      // Verify what was typed
+      const finalVal = await page.evaluate((e) => (e.value || '').trim(), el);
+      log(`✅ ${fieldName}:`, finalVal.substring(0, 50));
+      this._results.push({ field: fieldName, status: 'filled', value: finalVal });
       return true;
     } catch (err) {
       warn(`${fieldName}: fill error:`, err.message);
