@@ -215,35 +215,38 @@ class DivarAutomator {
     await randomDelay();
 
     // Step 1: Find and click the location "انتخاب" button
-    const locationBtns = await page.$$('.kt-action-field');
+    // The location field has a button.kt-action-field with text "انتخاب"
+    // and "مکان" appears in parent element text
     let clicked = false;
-    for (const btn of locationBtns) {
+    const actionButtons = await page.$$('button.kt-action-field');
+    for (const btn of actionButtons) {
       const text = await page.evaluate((e) => (e.textContent || '').trim(), btn);
-      // The location field has text "انتخاب" near "مکان آگهی"
-      const label = await page.evaluate((e) => {
-        const lbl = e.querySelector('.kt-action-field__label');
-        return lbl ? lbl.textContent.trim() : '';
-      }, btn);
-      // Check if this is the location field (has "انتخاب" as label text, near "مکان")
-      if (text.includes('انتخاب')) {
-        // Verify it's the location field by checking nearby text
-        const parent = await btn.evaluateHandle((e) => e.closest('.post-fields__field') || e.parentElement);
-        const parentText = await parent.evaluate((e) => (e.textContent || '').trim());
-        if (parentText.includes('مکان') || parentText.includes('موقعیت') || parentText.includes('شهر')) {
-          await btn.click();
-          log('clicked location field');
-          clicked = true;
-          break;
+      if (text !== 'انتخاب') continue;
+
+      // Walk up parents to check if "مکان" is nearby
+      const hasMakan = await page.evaluate((e) => {
+        let el = e;
+        for (let i = 0; i < 5; i++) {
+          el = el.parentElement;
+          if (!el) return false;
+          if (el.textContent.includes('مکان')) return true;
         }
+        return false;
+      }, btn);
+
+      if (hasMakan) {
+        await btn.click();
+        log('clicked location field');
+        clicked = true;
+        break;
       }
     }
 
-    // Fallback: try clicking any "انتخاب" that's visible
+    // Fallback: click first visible "انتخاب" button
     if (!clicked) {
-      const allBtns = await page.$$('button, [role="button"], .kt-action-field');
-      for (const btn of allBtns) {
-        const txt = await page.evaluate((e) => (e.textContent || '').trim(), btn);
-        if (txt === 'انتخاب' || txt.includes('انتخاب')) {
+      for (const btn of actionButtons) {
+        const text = await page.evaluate((e) => (e.textContent || '').trim(), btn);
+        if (text === 'انتخاب') {
           const isVisible = await page.evaluate((e) => e.offsetParent !== null, btn);
           if (isVisible) {
             await btn.click();

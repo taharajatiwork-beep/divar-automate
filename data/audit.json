@@ -187,5 +187,12 @@
     "operatorId": "op-ali",
     "id": "A00042",
     "timestamp": "2026-09-26T06:26:58.636Z"
+  },
+  {
+    "action": "product_posted",
+    "productId": "P004",
+    "operatorId": "op-ali",
+    "id": "A00043",
+    "timestamp": "2026-09-26T06:41:59.579Z"
   }
 ]
