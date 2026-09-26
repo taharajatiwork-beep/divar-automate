@@ -201,6 +201,159 @@ class DivarAutomator {
     if (product.images && product.images.length > 0) {
       await this._uploadImages(page, product);
     }
+
+    // Select city/location
+    if (product.city || (product.attributes && product.attributes.city)) {
+      await this.selectLocation(page, product.city || product.attributes.city);
+    }
+  }
+
+  // ── Select city/location in map modal ─────────────────────────
+  async selectLocation(page, cityName) {
+    if (!cityName) return;
+    log('selecting location:', cityName);
+    await randomDelay();
+
+    // Step 1: Find and click the location "انتخاب" button
+    const locationBtns = await page.$$('.kt-action-field');
+    let clicked = false;
+    for (const btn of locationBtns) {
+      const text = await page.evaluate((e) => (e.textContent || '').trim(), btn);
+      // The location field has text "انتخاب" near "مکان آگهی"
+      const label = await page.evaluate((e) => {
+        const lbl = e.querySelector('.kt-action-field__label');
+        return lbl ? lbl.textContent.trim() : '';
+      }, btn);
+      // Check if this is the location field (has "انتخاب" as label text, near "مکان")
+      if (text.includes('انتخاب')) {
+        // Verify it's the location field by checking nearby text
+        const parent = await btn.evaluateHandle((e) => e.closest('.post-fields__field') || e.parentElement);
+        const parentText = await parent.evaluate((e) => (e.textContent || '').trim());
+        if (parentText.includes('مکان') || parentText.includes('موقعیت') || parentText.includes('شهر')) {
+          await btn.click();
+          log('clicked location field');
+          clicked = true;
+          break;
+        }
+      }
+    }
+
+    // Fallback: try clicking any "انتخاب" that's visible
+    if (!clicked) {
+      const allBtns = await page.$$('button, [role="button"], .kt-action-field');
+      for (const btn of allBtns) {
+        const txt = await page.evaluate((e) => (e.textContent || '').trim(), btn);
+        if (txt === 'انتخاب' || txt.includes('انتخاب')) {
+          const isVisible = await page.evaluate((e) => e.offsetParent !== null, btn);
+          if (isVisible) {
+            await btn.click();
+            log('clicked location field (fallback)');
+            clicked = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!clicked) {
+      warn('location: could not find location field');
+      this._results.push({ field: 'location', status: 'field-not-found' });
+      return;
+    }
+
+    await sleep(2000);
+
+    // Step 2: Find search input in modal and type city name
+    const searchSelectors = [
+      'input[placeholder*="جستجو"]',
+      'input[placeholder*="شهر"]',
+      'input[placeholder*="محله"]',
+      'input[type="text"]',
+    ];
+    let searchInput = null;
+    for (const sel of searchSelectors) {
+      searchInput = await page.$(sel).catch(() => null);
+      if (searchInput) {
+        // Make sure it's the modal search, not another input
+        const isVisible = await page.evaluate((e) => e.offsetParent !== null, searchInput);
+        if (isVisible) break;
+        searchInput = null;
+      }
+    }
+
+    if (!searchInput) {
+      warn('location: search input not found in modal');
+      this._results.push({ field: 'location', status: 'search-not-found' });
+      return;
+    }
+
+    // Clear and type city name
+    await searchInput.click();
+    await sleep(100);
+    await page.keyboard.down('Control');
+    await page.keyboard.press('a');
+    await page.keyboard.up('Control');
+    await sleep(50);
+    await page.keyboard.press('Backspace');
+    await sleep(100);
+    await searchInput.type(cityName, { delay: 50 });
+    await sleep(1500);
+
+    // Step 3: Click first search result
+    const resultSelectors = [
+      '.kt-modal .kt-base-row',
+      '.kt-modal .kt-list-row',
+      '[class*="modal"] [class*="row"]',
+      '[class*="result"] [class*="item"]',
+    ];
+    let clickedResult = false;
+    for (const sel of resultSelectors) {
+      const results = await page.$$(sel);
+      for (const r of results) {
+        const text = await page.evaluate((e) => (e.textContent || '').trim(), r);
+        if (text.includes(cityName) || cityName.includes(text.replace(/\s+/g, ''))) {
+          const isVisible = await page.evaluate((e) => e.offsetParent !== null, r);
+          if (isVisible) {
+            await r.click();
+            log('selected city:', text.substring(0, 30));
+            clickedResult = true;
+            break;
+          }
+        }
+      }
+      if (clickedResult) break;
+    }
+
+    if (!clickedResult) {
+      // Try any visible row in the modal
+      const rows = await page.$$('.kt-modal .kt-base-row, .kt-modal [role="option"]');
+      if (rows.length > 0) {
+        await rows[0].click();
+        log('selected first city result');
+        clickedResult = true;
+      }
+    }
+
+    await sleep(1000);
+
+    // Step 4: Click "تأیید" button
+    const confirmBtns = await page.$$('button');
+    for (const btn of confirmBtns) {
+      const txt = await page.evaluate((e) => (e.textContent || '').trim(), btn);
+      if (txt === 'تأیید' || txt.includes('تأیید')) {
+        const isVisible = await page.evaluate((e) => e.offsetParent !== null && !e.disabled, btn);
+        if (isVisible) {
+          await btn.click();
+          log('location: confirmed');
+          this._results.push({ field: 'location', status: 'filled', value: cityName });
+          await sleep(1500);
+          return;
+        }
+      }
+    }
+
+    warn('location: confirm button not found');
+    this._results.push({ field: 'location', status: 'confirm-not-found' });
   }
 
   // ── Page 2: Car select dropdowns + usage input ──────────────────
