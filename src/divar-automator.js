@@ -78,6 +78,21 @@ class DivarAutomator {
               await btn.click();
               log('cleanup: clicked "پاک کردن"');
               await sleep(1500);
+
+              // Step 1b: Confirm "بله" in dialog
+              const confirmBtns = await page.$$('button');
+              for (const cbtn of confirmBtns) {
+                const ctxt = await page.evaluate((e) => (e.textContent || '').trim(), cbtn);
+                if (ctxt === 'بله') {
+                  const cVisible = await page.evaluate((e) => e.offsetParent !== null && !e.disabled, cbtn);
+                  if (cVisible) {
+                    await cbtn.click();
+                    log('cleanup: confirmed "بله"');
+                    await sleep(1500);
+                    break;
+                  }
+                }
+              }
               break;
             }
           }
