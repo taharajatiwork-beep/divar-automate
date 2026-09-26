@@ -75,7 +75,7 @@ class DivarAutomator {
           if (txt.includes('پاک کردن')) {
             const isVisible = await page.evaluate((e) => e.offsetParent !== null && !e.disabled, btn);
             if (isVisible) {
-              await btn.click();
+              await this._cdpClick(page, btn);
               log('cleanup: clicked "پاک کردن"');
               await sleep(1500);
 
@@ -86,7 +86,7 @@ class DivarAutomator {
                 if (ctxt === 'بله') {
                   const cVisible = await page.evaluate((e) => e.offsetParent !== null && !e.disabled, cbtn);
                   if (cVisible) {
-                    await cbtn.click();
+                    await this._cdpClick(page, cbtn);
                     log('cleanup: confirmed "بله"');
                     await sleep(1500);
                     break;
@@ -208,6 +208,22 @@ class DivarAutomator {
     }
   }
 
+  // ── CDP trusted click (isTrusted=true) ────────────────────────
+  async _cdpClick(page, element) {
+    const cdp = await page.target().createCDPSession();
+    try {
+      const rect = await page.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+      }, element);
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: rect.x, y: rect.y, button: 'left', clickCount: 1 });
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: rect.x, y: rect.y, button: 'left', clickCount: 1 });
+      await sleep(500);
+    } finally {
+      try { await cdp.detach(); } catch {}
+    }
+  }
+
   // ── Select city/location in map modal ─────────────────────────
   async selectLocation(page, cityName) {
     if (!cityName) return;
@@ -235,7 +251,7 @@ class DivarAutomator {
       }, btn);
 
       if (hasMakan) {
-        await btn.click();
+        await this._cdpClick(page, btn);
         log('clicked location field');
         clicked = true;
         break;
@@ -249,7 +265,7 @@ class DivarAutomator {
         if (text === 'انتخاب') {
           const isVisible = await page.evaluate((e) => e.offsetParent !== null, btn);
           if (isVisible) {
-            await btn.click();
+            await this._cdpClick(page, btn);
             log('clicked location field (fallback)');
             clicked = true;
             break;
@@ -317,7 +333,7 @@ class DivarAutomator {
         if (text.includes(cityName) || cityName.includes(text.replace(/\s+/g, ''))) {
           const isVisible = await page.evaluate((e) => e.offsetParent !== null, r);
           if (isVisible) {
-            await r.click();
+            await this._cdpClick(page, r);
             log('selected city:', text.substring(0, 30));
             clickedResult = true;
             break;
@@ -331,7 +347,7 @@ class DivarAutomator {
       // Try any visible row in the modal
       const rows = await page.$$('.kt-modal .kt-base-row, .kt-modal [role="option"]');
       if (rows.length > 0) {
-        await rows[0].click();
+        await this._cdpClick(page, rows[0]);
         log('selected first city result');
         clickedResult = true;
       }
@@ -346,7 +362,7 @@ class DivarAutomator {
       if (txt === 'تأیید' || txt.includes('تأیید')) {
         const isVisible = await page.evaluate((e) => e.offsetParent !== null && !e.disabled, btn);
         if (isVisible) {
-          await btn.click();
+          await this._cdpClick(page, btn);
           log('location: confirmed');
           this._results.push({ field: 'location', status: 'filled', value: cityName });
           await sleep(1500);
@@ -434,7 +450,7 @@ class DivarAutomator {
       return true;
     }
 
-    await trigger.click();
+    await this._cdpClick(page, trigger);
     await sleep(700);
 
     let modal = null;
@@ -457,7 +473,7 @@ class DivarAutomator {
     } else {
       warn(`${labelText}: option not found — ${optionText}`);
       this._results.push({ field: fieldId, status: 'no-match' });
-      await trigger.click().catch(() => {});
+      await this._cdpClick(page, trigger).catch(() => {});
     }
     return result.success;
   }
@@ -491,7 +507,7 @@ class DivarAutomator {
       const { text } = await getOptionTitle(row);
       const norm = normalizeOption(text);
       if (norm.includes(wanted) || wanted.includes(norm) || norm.split(/s*[-–]s*/).some(r => r.includes(wanted) || wanted.includes(r))) {
-        await row.click();
+        await this._cdpClick(page, row);
         return { success: true, strategy: 'pass1-exact' };
       }
     }
@@ -501,7 +517,7 @@ class DivarAutomator {
         const { text } = await getOptionTitle(row);
         const norm = normalizeOption(text);
         if (norm.includes(brandWord)) {
-          await row.click();
+          await this._cdpClick(page, row);
           return { success: true, strategy: 'pass2-brand' };
         }
       }
@@ -511,7 +527,7 @@ class DivarAutomator {
     for (const btn of showAllBtns) {
       const txt = await page.evaluate((e) => e.textContent?.trim(), btn);
       if (txt && /همه/.test(txt)) {
-        await btn.click();
+        await this._cdpClick(page, btn);
         await sleep(1000);
 
         const searchSels = ['input[type="text"]', 'input[placeholder]', 'input'];
@@ -531,7 +547,7 @@ class DivarAutomator {
           const { text } = await getOptionTitle(row);
           const norm = normalizeOption(text);
           if (norm.includes(wanted) || wanted.includes(norm) || norm.includes(brandWord)) {
-            await row.click();
+            await this._cdpClick(page, row);
             return { success: true, strategy: 'pass3-search' };
           }
         }
@@ -554,7 +570,7 @@ class DivarAutomator {
         const isVisible = await page.evaluate((e) => e.offsetParent !== null && !e.disabled, btn);
         if (isVisible) {
           log('clicking بعدی...');
-          await btn.click();
+          await this._cdpClick(page, btn);
           await sleep(3000);
           // Re-acquire page reference after navigation
           try { await browserService.reacquirePage(); } catch {}
